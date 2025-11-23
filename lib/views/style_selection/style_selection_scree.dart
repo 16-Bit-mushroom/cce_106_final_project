@@ -24,8 +24,6 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
 
   bool _isProcessing = false;
 
-  
-
   final List<String> _availableStyles = const [
     "Anime",
     "Oil Painting",
@@ -92,7 +90,15 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
   }
 
   void _applyStyle() async {
-    if (_selectedStyle == null || widget.imageBytes == null) return;
+    // Check for nulls first
+    if (_selectedStyle == null) {
+      _showError('Please select a style first.');
+      return;
+    }
+    if (widget.imageBytes == null) {
+      _showError('No image is available to style.');
+      return;
+    }
 
     setState(() {
       _isProcessing = true;
@@ -102,18 +108,22 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
       print('🎨 Starting style application for: $_selectedStyle');
       print('📸 Image bytes available: ${widget.imageBytes!.length} bytes');
 
-      // Call the corrected StabilityService function with optimized strength (0.85)
-      // CORRECT: Call testTextToImage without any arguments
-      Uint8List? styledImageBytes = await StabilityService.testTextToImage();
+      // --- THIS IS THE FIX ---
+      // Call the correct function (generateStyledImage) and pass it
+      // the user's selected image and style.
+      Uint8List? styledImageBytes = await StabilityService.generateStyledImage(
+        imageBytes: widget.imageBytes!,
+        style: _selectedStyle!,
+      );
+      // -----------------------
 
       if (styledImageBytes != null) {
         print('✅ Styled image generated successfully');
-        _navigateToResultScreen(styledImageBytes);
+        // Pass the original image bytes AND the new styled bytes
+        _navigateToResultScreen(widget.imageBytes!, styledImageBytes);
       } else {
         // If the API call fails (returns null)
-        _showError(
-          'Failed to apply style transformation. Check console for API errors.',
-        );
+        _showError('Failed to apply style. Check console for API errors.');
       }
     } catch (e) {
       print('💥 Error in _applyStyle: $e');
@@ -125,13 +135,17 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
     }
   }
 
-  void _navigateToResultScreen(Uint8List styledImageBytes) {
+  // Updated this function to accept both original and styled bytes
+  void _navigateToResultScreen(
+    Uint8List originalImageBytes,
+    Uint8List styledImageBytes,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => StyleResultScreen(
-          originalImageBytes: widget.imageBytes,
-          styledImageBytes: styledImageBytes,
+          originalImageBytes: originalImageBytes, // Pass the original
+          styledImageBytes: styledImageBytes, // Pass the new one
           styleName: _selectedStyle!,
         ),
       ),

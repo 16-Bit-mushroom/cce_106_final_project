@@ -3,126 +3,112 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 class StabilityService {
-  static const String _apiKey = 'sk-65YIHM2UAe6t1yhT85y6khBox2rr1dpdDSfHZhL0nx1Uxxjq';
+  // ----------------  SECURITY WARNING  ----------------
+  // 1. Go to your Stability AI dashboard and REVOKE your old key.
+  // 2. Generate a NEW key.
+  // 3. Paste your NEW key here for testing.
+  // 4. Before you launch your app, you MUST move this code to a
+  //    backend (like a Firebase Function) to protect your key.
+  // ----------------------------------------------------
+  static const String _apiKey =
+      'sk-YUaYsJOwcVrzeY9C26rtlcOtHaeegjmLULvtv4vd9BZilGq3';
+
   static const String _baseUrl = 'https://api.stability.ai';
 
+  // Your style prompts are excellent and will work well.
   static final Map<String, String> stylePrompts = {
-    "Anime": "transform into anime art style, vibrant colors, large expressive eyes, detailed hair, professional anime artwork, cel-shaded, Japanese animation, manga illustration, anime character art",
-    "Oil Painting": "convert to oil painting style, visible brush strokes, rich texture, classical painting, Renaissance masterpiece, dramatic lighting, canvas texture, impasto technique, old masters style",
-    "Cyberpunk": "transform into cyberpunk aesthetic, neon colors, futuristic elements, holographic displays, dystopian cityscape, glowing effects, technological enhancements, Blade Runner style, futuristic cybernetic",
-    "Pixel Art": "convert to pixel art style, limited color palette, blocky retro video game aesthetics, 8-bit graphics, 16-bit sprite, dithering, video game art, retro gaming pixels",
-    "Watercolor": "transform into watercolor painting, soft edges, transparent layers, beautiful color bleeds, delicate artwork, spontaneous brushwork, fluid colors, paper texture, watercolor wash",
-    "Sketch": "convert to pencil sketch art, detailed line work, shading, cross-hatching, professional artist's sketch, hand-drawn illustration, charcoal drawing, monochrome sketch art",
-    "Cartoon": "transform into cartoon illustration style, bold outlines, exaggerated features, bright solid colors, modern animation, clean lines, Disney animation style, animated series art",
-    "Impressionist": "convert to impressionist painting, short brush strokes, emphasis on light, visible movement, Monet style, spontaneous, outdoor scene, color harmony, impressionism art",
-    "Pop Art": "transform into pop art style, bold colors, Ben-Day dots, comic book aesthetics, Andy Warhol style, graphic art, commercial art, vibrant patterns, pop culture art",
+    "Anime":
+        "transform into anime art style, vibrant colors, large expressive eyes, detailed hair, professional anime artwork, cel-shaded, Japanese animation, manga illustration, anime character art",
+    "Oil Painting":
+        "convert to oil painting style, visible brush strokes, rich texture, classical painting, Renaissance masterpiece, dramatic lighting, canvas texture, impasto technique, old masters style",
+    "Cyberpunk":
+        "transform into cyberpunk aesthetic, neon colors, futuristic elements, holographic displays, dystopian cityscape, glowing effects, technological enhancements, Blade Runner style, futuristic cybernetic",
+    "Pixel Art":
+        "convert to pixel art style, limited color palette, blocky retro video game aesthetics, 8-bit graphics, 16-bit sprite, dithering, video game art, retro gaming pixels",
+    "Watercolor":
+        "transform into watercolor painting, soft edges, transparent layers, beautiful color bleeds, delicate artwork, spontaneous brushwork, fluid colors, paper texture, watercolor wash",
+    "Sketch":
+        "convert to pencil sketch art, detailed line work, shading, cross-hatching, professional artist's sketch, hand-drawn illustration, charcoal drawing, monochrome sketch art",
+    "Cartoon":
+        "transform into cartoon illustration style, bold outlines, exaggerated features, bright solid colors, modern animation, clean lines, Disney animation style, animated series art",
+    "Impressionist":
+        "convert to impressionist painting, short brush strokes, emphasis on light, visible movement, Monet style, spontaneous, outdoor scene, color harmony, impressionism art",
+    "Pop Art":
+        "transform into pop art style, bold colors, Ben-Day dots, comic book aesthetics, Andy Warhol style, graphic art, commercial art, vibrant patterns, pop culture art",
   };
 
   static Future<Uint8List?> generateStyledImage({
     required Uint8List imageBytes,
     required String style,
-    double strength = 0.7, // Start slightly lower than 0.85 for core model
+    double strength = 0.7, // This is the 'strength' from the docs
   }) async {
     try {
-      print('🚀 Starting Stability AI API call for style: $style (v2beta Core)');
-      
-      var request = http.MultipartRequest(
-        'POST',
-        // FIX 1: Switch to the modern v2beta Core model endpoint
-        Uri.parse('$_baseUrl/v2beta/stable-image/generate/core'),
+      print(
+        '🚀 Starting Stability AI API call for style: $style (v2beta SD3.5)',
       );
 
+      // --- Use the correct Image-to-Image endpoint ---
+      // This endpoint supports image-to-image.
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$_baseUrl/v2beta/stable-image/generate/sd3'),
+      );
+
+      // Add API key and Accept headers
       request.headers['Authorization'] = 'Bearer $_apiKey';
-      // FIX 2: v2beta requires 'image/*' or 'application/json' for Accept
-      request.headers['Accept'] = 'image/*'; 
+      request.headers['Accept'] = 'image/*'; // We want raw image bytes back
 
-      // FIX 3: v2beta requires the input image field name to be 'image'
-      request.files.add(http.MultipartFile.fromBytes(
-        'image', 
-        imageBytes,
-        filename: 'original.jpg',
-      ));
+      // --- Add the REQUIRED 'mode' parameter ---
+      // The sd3 endpoint requires this to know you're doing img2img
+      request.fields['mode'] = 'image-to-image';
 
+      // --- These parameters are all correct for this endpoint ---
 
+      // The input image
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'image',
+          imageBytes,
+          filename: 'original.jpg',
+        ),
+      );
 
-      // FIX 4: v2beta requires the prompt field name to be 'prompt'
-      request.fields['prompt'] = stylePrompts[style] ?? "Apply $style style to this image";
-      
-      // FIX 5: v2beta requires the strength field name to be 'strength'
+      // The text prompt
+      request.fields['prompt'] =
+          stylePrompts[style] ?? "Apply $style style to this image";
+
+      // The strength parameter, required for img2img
       request.fields['strength'] = strength.toStringAsFixed(2);
-      
-      // 6. Add Negative Prompt (Essential for style control in v2beta as well)
-      request.fields['negative_prompt'] = 'photorealistic, photo, low quality, bad composition, watermark, signature, ugly, deformed, blurry';
-      
-      // 7. Add output format field (required by v2beta)
-      request.fields['output_format'] = 'png'; 
-      
-      // Optional: set the aspect ratio based on your input image dimensions 
-      // (This will need to be calculated and sent, but we'll omit it for minimal change)
-      // request.fields['aspect'] = '2:3'; 
-      
-      request.fields['cfg_scale'] = '7';
-      request.fields['steps'] = '30';
-      
+
+      // Optional, but good to have
+      request.fields['negative_prompt'] =
+          'photorealistic, photo, low quality, bad composition, watermark, signature, ugly, deformed, blurry';
+
+      // Specify the output format
+      request.fields['output_format'] = 'png';
+
+      // You can also specify the model if you want, e.g., sd3.5-medium
+      // request.fields['model'] = 'sd3.5-medium';
+
       print('⏳ Sending request to Stability AI...');
       final response = await request.send();
-      
+
+      // Handle the response
       if (response.statusCode == 200) {
         final bytes = await response.stream.toBytes();
         print('✅ Successfully generated styled image: ${bytes.length} bytes');
         return bytes;
       } else {
+        // If it's not 200, read the error message
         final errorBody = await response.stream.bytesToString();
         print('❌ Stability AI API error: ${response.statusCode}');
         print('❌ Error details: $errorBody');
         return null;
       }
     } catch (e) {
+      // This is the ClientException (network error) you are seeing
       print('💥 Error calling Stability AI API: $e');
       return null;
     }
   }
-
-  // The diagnostic function for completeness
-  static Future<Uint8List?> testTextToImage() async {
-    try {
-      print('🧪 Testing Stability AI Text-to-Image API...');
-      
-      final response = await http.post(
-        Uri.parse('$_baseUrl/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image'),
-        headers: {
-          'Authorization': 'Bearer $_apiKey',
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: json.encode({
-          'text_prompts': [{'text': 'A red cube floating in a blue cosmic void, digital art', 'weight': 1.0}],
-          'cfg_scale': 7,
-          'steps': 30,
-          'samples': 1,
-          'width': 1024,
-          'height': 1024,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final jsonResponse = json.decode(response.body);
-        if (jsonResponse['artifacts'] != null && jsonResponse['artifacts'].isNotEmpty) {
-          final base64Image = jsonResponse['artifacts'][0]['base64'];
-          final bytes = base64.decode(base64Image);
-          print('✅ Text-to-Image test PASSED. API key and endpoint are working.');
-          return bytes;
-        }
-      }
-      final errorBody = response.body;
-      print('❌ Text-to-Image test FAILED: ${response.statusCode}');
-      print('❌ Error details: $errorBody');
-      return null;
-    } catch (e) {
-      print('💥 Text-to-Image test error: $e');
-      return null;
-    }
-  }
-  
-  static Future<void> testApiConnection() async {}
 }
