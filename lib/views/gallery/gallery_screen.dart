@@ -1,253 +1,233 @@
-import 'package:cce_106_final_project/views/albums/customer_albums_screen.dart';
 import 'package:flutter/material.dart';
-import '../components/gallery_header.dart';
-// import '../components/style_grid.dart'; // No longer needed for this specific layout
-import 'photo_grid_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cce_106_final_project/views/login_screen.dart';
 
-class GalleryScreen extends StatefulWidget {
+class GalleryScreen extends StatelessWidget {
   const GalleryScreen({super.key});
 
   @override
-  State<GalleryScreen> createState() => _GalleryScreenState();
-}
+  Widget build(BuildContext context) {
+    final currentUser = Supabase.instance.client.auth.currentUser;
 
-class _GalleryScreenState extends State<GalleryScreen> {
-  // Mock data to simulate the "Customer Requests" list
-  final List<Map<String, String>> _requests = [
-    {'user': 'chriscyrl', 'date': '2023-10-24', 'status': 'Pending'},
-    {'user': 'jane_design', 'date': '2023-10-23', 'status': 'Pending'},
-    {'user': 'mike_studio', 'date': '2023-10-22', 'status': 'Reviewed'},
-  ];
-
-void _navigateToAlbum(String title) {
-    if (title == "Customer Sent Photos") {
-      // Navigate to the specific Customer Albums List
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const CustomerAlbumsScreen(),
-        ),
-      );
-    } else {
-      // Navigate to the generic Photo Grid (All Photos)
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PhotoGridScreen(
-            albumTitle: title,
+    // 1. Force Login if needed
+    if (currentUser == null) {
+      return Center(
+        child: ElevatedButton(
+          onPressed: () => Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
           ),
+          child: const Text("Log In"),
         ),
       );
     }
-  }
 
-  // The Modal described in the wireframe
-  void _showRequestDetails(Map<String, String> request) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true, // Allows sheet to expand
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Request from ${request['user']}",
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              const Text("Details:", style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              const Text("• 15 Photos sent"),
-              const Text("• Style requested: Minimalist/Industrial"),
-              const Text("• Notes: Please focus on the lighting details."),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text("Close"),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _navigateToAlbum("${request['user']}'s Photos");
-                      },
-                      child: const Text("View Photos"),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 16),
-              // 1. Header
-              const GalleryHeader(),
-              const SizedBox(height: 24),
-
-              // 2. Top Section: Two Main Album Cards
-              Row(
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // 2. The Header (Dashboard Title)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: _buildAlbumCard(
-                      title: "All\nPhotos",
-                      onTap: () => _navigateToAlbum("All Styled Photos"),
+                  const Text(
+                    "Dashboard",
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildAlbumCard(
-                      title: "Customer\nPhotos",
-                      onTap: () => _navigateToAlbum("Customer Sent Photos"),
-                    ),
+                  CircleAvatar(
+                    backgroundColor: Colors.grey[200],
+                    child: const Icon(Icons.person, color: Colors.grey),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 32),
-
-              // 3. Middle Header
-              const Text(
-                "Customer Requests",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // 4. Scrollable List of Requests
-              Expanded(
-                child: ListView.separated(
-                  // Padding at bottom to avoid Navbar overlay
-                  padding: const EdgeInsets.only(bottom: 120),
-                  itemCount: _requests.length,
-                  separatorBuilder: (ctx, i) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    return _buildRequestItem(_requests[index]);
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Helper widget for the top two square cards
-  Widget _buildAlbumCard({required String title, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 120, // Makes them square-ish
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            )
-          ],
-        ),
-        child: Center(
-          child: Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
             ),
           ),
+
+          // 3. The Big "Gallery" Buttons
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Gallery",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(child: _buildGalleryButton("All Photos")),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildGalleryButton("Customer\nPhotos")),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  const Text(
+                    "Requests",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+          ),
+
+          // 4. The Realtime Request List
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: Supabase.instance.client
+                .from('requests')
+                .stream(primaryKey: ['id'])
+                .eq('user_id', currentUser.id) // Filter by current user!
+                .order('created_at', ascending: false),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const SliverToBoxAdapter(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                );
+              }
+
+              final requests = snapshot.data!;
+
+              if (requests.isEmpty) {
+                return const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(40.0),
+                    child: Center(
+                      child: Text(
+                        "No requests yet.\nTap + to add one!",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final req = requests[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 6,
+                    ),
+                    child: _buildRequestRow(req),
+                  );
+                }, childCount: requests.length),
+              );
+            },
+          ),
+
+          // Extra space at bottom so nav bar doesn't cover content
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGalleryButton(String label) {
+    return Container(
+      height: 100,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.black87, width: 1.5),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
       ),
     );
   }
 
-  // Helper widget for the list items
-  Widget _buildRequestItem(Map<String, String> request) {
+  Widget _buildRequestRow(Map<String, dynamic> item) {
+    final status = item['status'] ?? 'pending';
+    // Get image URL (assuming public bucket 'photos')
+    final imageUrl = Supabase.instance.client.storage
+        .from('photos')
+        .getPublicUrl(item['original_image_path']);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.black12),
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black87, width: 1.5),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                request['user']!,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-              ),
-              Text(
-                request['date']!,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(
-            height: 32,
-            child: OutlinedButton(
-              onPressed: () => _showRequestDetails(request),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                side: const BorderSide(color: Colors.black),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-              child: const Text(
-                "view",
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 12,
-                ),
+          // Small Thumbnail
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              imageUrl,
+              width: 50,
+              height: 50,
+              fit: BoxFit.cover,
+              errorBuilder: (c, e, s) => Container(
+                width: 50,
+                height: 50,
+                color: Colors.grey[200],
+                child: const Icon(Icons.broken_image, size: 20),
               ),
             ),
-          )
+          ),
+          const SizedBox(width: 12),
+          // Info Column
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item['style_type'] ?? "New Request",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    color: status == 'completed' ? Colors.green : Colors.orange,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // View Button
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.black87, width: 1.5),
+            ),
+            child: const Text(
+              "view",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ),
         ],
       ),
     );

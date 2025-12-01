@@ -1,135 +1,122 @@
-import 'package:cce_106_final_project/views/components/selection_option_card.dart';
-import 'package:cce_106_final_project/views/style_selection/style_selection_scree.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cce_106_final_project/views/components/selection_option_card.dart';
 
-class ImageSelectionScreen extends StatelessWidget {
+class ImageSelectionScreen extends StatefulWidget {
   const ImageSelectionScreen({super.key});
 
-  // --- Web-Only Image Picking ---
-  Future<void> _pickImageFromGallery(BuildContext context) async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      
-      // For web, this opens the file explorer
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 85,
-      );
+  @override
+  State<ImageSelectionScreen> createState() => _ImageSelectionScreenState();
+}
 
-      if (image != null) {
-        debugPrint("Image selected: ${image.name}");
-        
-        // Read image as bytes for web
-        final bytes = await image.readAsBytes();
-        
-        Navigator.push(
-          // ignore: use_build_context_synchronously
-          context,
-          MaterialPageRoute(
-            builder: (context) => StyleSelectionScreen(
-              imageBytes: bytes,
-              // imageName: image.name, // Optional: pass the file name
-            ),
-          ),
-        );
-      } else {
-        debugPrint("No image selected");
-      }
-    } catch (e) {
-      debugPrint("Error picking image: $e");
-      _showErrorSnackBar(context, "Failed to pick image: ${e.toString()}");
-    }
-  }
+class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
+  bool _isUploading = false;
 
-  // Optional: Web camera support
-  Future<void> _takePhotoWithCamera(BuildContext context) async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      
-      final XFile? photo = await picker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 85,
-      );
-
-      if (photo != null) {
-        debugPrint("Photo taken: ${photo.name}");
-        
-        final bytes = await photo.readAsBytes();
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => StyleSelectionScreen(
-              imageBytes: bytes,
-              // imageName: photo.name,
-            ),
-          ),
-        );
-        
-      }
-    } catch (e) {
-      debugPrint("Error with camera: $e");
-      _showErrorSnackBar(context, "Camera not available: ${e.toString()}");
-    }
-  }
-
-  void _showErrorSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
+  Future<void> _pickAndUpload(ImageSource source) async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: source,
+      maxWidth: 1920, // Good size for AI
+      imageQuality: 80,
     );
+
+    if (image == null) return;
+
+    setState(() => _isUploading = true);
+
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser!.id;
+      final bytes = await image.readAsBytes();
+      final fileExt = image.path.split('.').last;
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final filePath = 'raw/$userId/$fileName';
+
+      // 1. Upload to Storage
+      await supabase.storage
+          .from('photos')
+          .uploadBinary(
+            filePath,
+            bytes,
+            fileOptions: const FileOptions(contentType: 'image/jpeg'),
+          );
+
+      // 2. Insert into Database
+      await supabase.from('requests').insert({
+        'user_id': userId,
+        'original_image_path': filePath,
+        'style_type': 'Pending Selection', // Placeholder
+        'status': 'pending',
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Photo uploaded successfully!')),
+        );
+        Navigator.pop(context); // Return to Gallery
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Select Photo Source"),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Camera option (works on web if browser supports it)
-              SelectionOptionCard(
-                icon: Icons.camera_alt_outlined,
-                title: "Take Photo",
-                onTap: () {
-                  _takePhotoWithCamera(context);
-                },
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20.0),
-                child: Text(
-                  "Or",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
+      appBar: AppBar(title: const Text("New Request")),
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  "Upload a photo to style",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 40),
+                SelectionOptionCard(
+                  icon: Icons.camera_alt_outlined,
+                  title: "Take Photo",
+                  onTap: () => _pickAndUpload(ImageSource.camera),
+                ),
+                const SizedBox(height: 20),
+                SelectionOptionCard(
+                  icon: Icons.photo_library_outlined,
+                  title: "Choose from Gallery",
+                  onTap: () => _pickAndUpload(ImageSource.gallery),
+                ),
+              ],
+            ),
+          ),
+          if (_isUploading)
+            Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 16),
+                    Text("Uploading...", style: TextStyle(color: Colors.white)),
+                  ],
                 ),
               ),
-              // Gallery option - this will open Windows file explorer
-              SelectionOptionCard(
-                icon: Icons.photo_library_outlined,
-                title: "Choose from Gallery",
-                onTap: () {
-                  _pickImageFromGallery(context);
-                },
-              ),
-            ],
-          ),
-        ),
+            ),
+        ],
       ),
     );
   }
