@@ -1,77 +1,109 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-// import '../components/photo_view_screen.dart'; // Ensure this is imported
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cce_106_final_project/views/style_selection/style_selection_scree.dart';
+import 'dart:typed_data'; // <--- ADDED THIS IMPORT
 
 class CustomerRequestGridScreen extends StatefulWidget {
-  final String customerName;
-  final String styleRequest;
-  final String notes;
+  final Map<String, dynamic> request; // We now accept the full request map
 
-  const CustomerRequestGridScreen({
-    super.key,
-    required this.customerName,
-    required this.styleRequest,
-    required this.notes,
-  });
+  const CustomerRequestGridScreen({super.key, required this.request});
 
   @override
-  State<CustomerRequestGridScreen> createState() => _CustomerRequestGridScreenState();
+  State<CustomerRequestGridScreen> createState() =>
+      _CustomerRequestGridScreenState();
 }
 
 class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
-  // --- Selection Logic Copied from PhotoGridScreen ---
-  bool _isSelectionMode = false;
-  final Set<int> _selectedIndices = {};
-  final int _totalItems = 15; // Example count
+  bool _isDownloading = false;
 
-  void _toggleItemSelection(int index) {
-    setState(() {
-      if (_selectedIndices.contains(index)) {
-        _selectedIndices.remove(index);
-        if (_selectedIndices.isEmpty) _isSelectionMode = false;
-      } else {
-        _selectedIndices.add(index);
-        _isSelectionMode = true;
+  // --- Image Fetch Logic ---
+  // When Staff clicks "Process AI", we need the image bytes first.
+  Future<Uint8List?> _fetchImageBytes() async {
+    setState(() => _isDownloading = true);
+    try {
+      final path = widget.request['original_image_path'];
+      if (path == null) throw Exception("Image path is missing.");
+
+      final bytes = await Supabase.instance.client.storage
+          .from('photos')
+          .download(path);
+
+      return bytes;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error fetching image: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    });
+      return null;
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
   }
+
+  void _processAiStyle() async {
+    final imageBytes = await _fetchImageBytes();
+
+    if (imageBytes != null && mounted) {
+      // Navigate to the AI Style Generation Screen, passing the bytes
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => StyleSelectionScreen(
+            imageBytes: imageBytes,
+            // Pass the request ID so we can update the DB after generation
+            requestData: widget.request,
+          ),
+        ),
+      );
+    }
+  }
+
+  // --- Selection Logic ---
+  final Set<int> _selectedIndices = {};
+  final int _totalItems = 1;
 
   void _cancelSelection() {
     setState(() {
       _selectedIndices.clear();
-      _isSelectionMode = false;
     });
   }
-  // ---------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
+    final styleRequest = widget.request['style_type'] ?? 'Style Not Specified';
+    final requestStatus = widget.request['status'] ?? 'pending';
+    final originalImagePath = widget.request['original_image_path'];
+    // Handle cases where ID might be null or not a string safely
+    final requestId = widget.request['id']?.toString() ?? 'Unknown ID';
+    final shortId = requestId.length > 8
+        ? requestId.substring(0, 8)
+        : requestId;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: Text(
-          _isSelectionMode 
-            ? "${_selectedIndices.length} Selected" 
-            : "${widget.customerName}'s Photos",
-          style: const TextStyle(color: Colors.black),
-        ),
-        actions: _isSelectionMode
-            ? [
-                IconButton(
-                  icon: const Icon(Icons.print),
-                  onPressed: () {
-                    // Print logic here
-                  },
+        title: Text(shortId),
+        actions: [
+          // If the request hasn't been processed, show the AI button
+          if (requestStatus == 'pending')
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ElevatedButton.icon(
+                onPressed: _isDownloading ? null : _processAiStyle,
+                icon: const Icon(Icons.auto_awesome),
+                label: Text(_isDownloading ? "Loading..." : "Process AI"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
                 ),
-                TextButton(
-                  onPressed: _cancelSelection,
-                  child: const Text("Done"),
-                ),
-              ]
-            : null,
+              ),
+            ),
+        ],
       ),
       body: CustomScrollView(
         slivers: [
@@ -86,97 +118,70 @@ class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
                   color: Colors.white,
                   border: Border.all(color: Colors.black, width: 1.5),
                   borderRadius: BorderRadius.circular(8),
-                  boxShadow: const [
-                     BoxShadow(
-                        color: Colors.black12,
-                        offset: Offset(0, 4),
-                        blurRadius: 8,
-                     )
-                  ]
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          widget.customerName,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                        ),
-                        const Chip(label: Text("Pending Review"))
-                      ],
+                    Text(
+                      "Request ID: $shortId",
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    _buildDetailRow("Style Request:", widget.styleRequest),
+                    _buildDetailRow("Style Requested:", styleRequest),
                     const SizedBox(height: 8),
-                    _buildDetailRow("Notes:", widget.notes),
+                    _buildDetailRow("Status:", requestStatus.toUpperCase()),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
             ),
           ),
 
-          // 2. THE PHOTO GRID
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverMasonryGrid.count(
-              crossAxisCount: 2,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              childCount: _totalItems,
-              itemBuilder: (context, index) {
-                final isSelected = _selectedIndices.contains(index);
-                
-                // Logic to generate random aspect ratios for demo
-                final double aspectRatio = (index % 3 == 0) ? 1.0 : (index % 2 == 0 ? 0.7 : 1.3);
-                
-                return GestureDetector(
-                  onLongPress: () => _toggleItemSelection(index),
-                  onTap: () {
-                    if (_isSelectionMode) {
-                      _toggleItemSelection(index);
-                    } else {
-                      // Navigate to viewer
-                    }
-                  },
-                  child: Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          color: Colors.grey[200],
-                          child: AspectRatio(
-                            aspectRatio: aspectRatio,
-                            child: Image.network(
-                              'https://picsum.photos/seed/${index + 100}/400/600',
-                              fit: BoxFit.cover,
-                              errorBuilder: (c,o,s) => const Icon(Icons.image),
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (_isSelectionMode)
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: isSelected ? Colors.black.withOpacity(0.4) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
-                            ),
-                            child: isSelected 
-                              ? const Center(child: Icon(Icons.check_circle, color: Colors.white, size: 32))
-                              : null,
-                          ),
-                        ),
-                    ],
+          // 2. THE PHOTO DISPLAY (Original Image)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Original Source Photo",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                );
-              },
+                  const SizedBox(height: 8),
+                  AspectRatio(
+                    aspectRatio: 1.5, // Standard photo aspect
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: originalImagePath != null
+                          ? Image.network(
+                              Supabase.instance.client.storage
+                                  .from('photos')
+                                  .getPublicUrl(originalImagePath),
+                              fit: BoxFit.cover,
+                              errorBuilder: (c, e, s) => Container(
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: Icon(Icons.broken_image),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: Text("No Image Path Found"),
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          
-          // Extra padding at bottom so items aren't hidden by nav bars
+
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
@@ -188,7 +193,10 @@ class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
       text: TextSpan(
         style: const TextStyle(color: Colors.black87, fontSize: 14),
         children: [
-          TextSpan(text: "$label ", style: const TextStyle(fontWeight: FontWeight.bold)),
+          TextSpan(
+            text: "$label ",
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           TextSpan(text: value),
         ],
       ),

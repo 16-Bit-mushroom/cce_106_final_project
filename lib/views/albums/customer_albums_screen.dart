@@ -1,34 +1,43 @@
 import 'package:flutter/material.dart';
-import '../components/album_card.dart'; // Assuming this exists from your previous uploads
-import 'customer_request_grid_screen.dart'; // The new screen below
+import '../components/album_card.dart';
+import 'customer_request_grid_screen.dart';
 
 class CustomerAlbumsScreen extends StatelessWidget {
   const CustomerAlbumsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Mock Data representing customers who sent photos
+    // UPDATED MOCK DATA: Matches Supabase "requests" table structure
     final List<Map<String, dynamic>> customerRequests = [
       {
-        "name": "chriscyrl",
-        "style": "Industrial Minimalist",
+        "id": "mock_id_12345",
+        "name": "chriscyrl", // Helper field for display
+        "style_type": "Industrial Minimalist", // Mapped to style_type
         "notes": "Focus on the lighting details.",
+        "status": "pending",
+        "original_image_path": "mock/path/image1.jpg", // Prevents null crash
         "count": 15,
-        "date": "Oct 24, 2023"
+        "created_at": "Oct 24, 2023",
       },
       {
+        "id": "mock_id_67890",
         "name": "jane_design",
-        "style": "Boho Chic",
+        "style_type": "Boho Chic",
         "notes": "Looking for warm tones.",
+        "status": "completed",
+        "original_image_path": "mock/path/image2.jpg",
         "count": 8,
-        "date": "Oct 23, 2023"
+        "created_at": "Oct 23, 2023",
       },
       {
+        "id": "mock_id_11223",
         "name": "mike_studio",
-        "style": "Modern Art",
+        "style_type": "Modern Art",
         "notes": "High contrast needed.",
+        "status": "pending",
+        "original_image_path": "mock/path/image3.jpg",
         "count": 22,
-        "date": "Oct 22, 2023"
+        "created_at": "Oct 22, 2023",
       },
     ];
 
@@ -38,7 +47,11 @@ class CustomerAlbumsScreen extends StatelessWidget {
         title: const Text("Customer Photos"),
         backgroundColor: Colors.white,
         elevation: 0,
-        titleTextStyle: const TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
+        titleTextStyle: const TextStyle(
+          color: Colors.black,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: Padding(
@@ -49,7 +62,7 @@ class CustomerAlbumsScreen extends StatelessWidget {
             crossAxisCount: 3,
             crossAxisSpacing: 8,
             mainAxisSpacing: 8,
-            childAspectRatio: 0.8, 
+            childAspectRatio: 0.8,
           ),
           itemCount: customerRequests.length,
           itemBuilder: (context, index) {
@@ -59,18 +72,15 @@ class CustomerAlbumsScreen extends StatelessWidget {
               index: index,
               albumName: request["name"],
               owner: "Customer",
-              dateCreated: request["date"],
+              dateCreated: request["created_at"],
               itemCount: request["count"],
               onTap: () {
-                // Navigate to the new Grid Screen with Details Header
+                // FIXED: Now passes the map as 'request'
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => CustomerRequestGridScreen(
-                      customerName: request["name"],
-                      styleRequest: request["style"],
-                      notes: request["notes"],
-                    ),
+                    builder: (context) =>
+                        CustomerRequestGridScreen(request: request),
                   ),
                 );
               },

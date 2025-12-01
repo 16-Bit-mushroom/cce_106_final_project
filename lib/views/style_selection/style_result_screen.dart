@@ -1,33 +1,98 @@
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class StyleResultScreen extends StatelessWidget {
+class StyleResultScreen extends StatefulWidget {
   final Uint8List? originalImageBytes;
   final Uint8List? styledImageBytes;
   final String styleName;
+  // NEW: Accept request data so we know what to update in DB
+  final Map<String, dynamic>? requestData;
 
   const StyleResultScreen({
     super.key,
     this.originalImageBytes,
     this.styledImageBytes,
     required this.styleName,
+    this.requestData,
   });
 
-  
+  @override
+  State<StyleResultScreen> createState() => _StyleResultScreenState();
+}
+
+class _StyleResultScreenState extends State<StyleResultScreen> {
+  bool _isSaving = false;
+
+  Future<void> _saveAndComplete() async {
+    // 1. Validation
+    if (widget.requestData == null || widget.styledImageBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Missing request data or image.')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final requestId = widget.requestData!['id'];
+      // Create a unique filename for storage
+      final fileName =
+          'styled_${requestId}_${DateTime.now().millisecondsSinceEpoch}.png';
+      final filePath = 'styled/$fileName';
+
+      // 2. Upload Styled Image to Supabase Storage
+      await Supabase.instance.client.storage
+          .from('photos')
+          .uploadBinary(
+            filePath,
+            widget.styledImageBytes!,
+            fileOptions: const FileOptions(contentType: 'image/png'),
+          );
+
+      // 3. Update Request Record (Status -> Completed)
+      await Supabase.instance.client
+          .from('requests')
+          .update({
+            'styled_image_path': filePath,
+            'status': 'completed',
+            'style_type': widget.styleName,
+          })
+          .eq('id', requestId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Saved successfully! Request Completed.'),
+          ),
+        );
+        // Pop back to Dashboard (remove Result AND Selection screens)
+        Navigator.of(context)
+          ..pop()
+          ..pop();
+      }
+    } catch (e) {
+      print("Save Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("$styleName Style Result"),
-        actions: [
-          if (styledImageBytes != null)
-            IconButton(
-              icon: const Icon(Icons.download),
-              onPressed: () => _downloadImage(context),
-              tooltip: 'Download Styled Image',
-            ),
-        ],
+        title: Text("${widget.styleName} Style Result"),
+        // Removed the top download button to focus on the main action below
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -40,7 +105,7 @@ class StyleResultScreen extends StatelessWidget {
                   // Original Image
                   Expanded(
                     child: _buildImageCard(
-                      imageBytes: originalImageBytes,
+                      imageBytes: widget.originalImageBytes,
                       title: 'Original',
                       borderColor: Colors.blue,
                     ),
@@ -49,33 +114,46 @@ class StyleResultScreen extends StatelessWidget {
                   // Styled Image
                   Expanded(
                     child: _buildImageCard(
-                      imageBytes: styledImageBytes,
-                      title: 'Styled ($styleName)',
+                      imageBytes: widget.styledImageBytes,
+                      title: 'Styled (${widget.styleName})',
                       borderColor: Colors.green,
                     ),
                   ),
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             // Action Buttons
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: _isSaving ? null : () => Navigator.pop(context),
                     child: const Text('Try Another Style'),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: styledImageBytes != null 
-                        ? () => _downloadImage(context)
+                    onPressed: (widget.styledImageBytes != null && !_isSaving)
+                        ? _saveAndComplete
                         : null,
-                    child: const Text('Download Styled'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text('Save & Complete'),
                   ),
                 ),
               ],
@@ -99,10 +177,7 @@ class StyleResultScreen extends StatelessWidget {
           children: [
             Text(
               title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: borderColor,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, color: borderColor),
             ),
             const SizedBox(height: 8),
             Expanded(
@@ -114,17 +189,21 @@ class StyleResultScreen extends StatelessWidget {
                 child: imageBytes != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: Image.memory(
-                          imageBytes,
-                          fit: BoxFit.cover,
-                        ),
+                        child: Image.memory(imageBytes, fit: BoxFit.cover),
                       )
                     : Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.broken_image, size: 40, color: Colors.grey),
-                            Text('No Image', style: TextStyle(color: Colors.grey)),
+                            const Icon(
+                              Icons.broken_image,
+                              size: 40,
+                              color: Colors.grey,
+                            ),
+                            const Text(
+                              'No Image',
+                              style: TextStyle(color: Colors.grey),
+                            ),
                           ],
                         ),
                       ),
@@ -134,18 +213,5 @@ class StyleResultScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  void _downloadImage(BuildContext context) {
-    if (styledImageBytes != null) {
-      // TODO: Implement actual download functionality
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Downloading $styleName styled image...'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      print('📥 Downloading image of ${styledImageBytes!.length} bytes');
-    }
   }
 }
