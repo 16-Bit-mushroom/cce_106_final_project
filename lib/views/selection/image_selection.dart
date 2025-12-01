@@ -14,14 +14,15 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   bool _isUploading = false;
 
   Future<void> _pickAndUpload(ImageSource source) async {
+    // 1. Pick the image
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(
       source: source,
-      maxWidth: 1920, // Good size for AI
+      maxWidth: 1920, // Limit size for easier AI processing
       imageQuality: 80,
     );
 
-    if (image == null) return;
+    if (image == null) return; // User cancelled
 
     setState(() => _isUploading = true);
 
@@ -33,7 +34,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
       final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
       final filePath = 'raw/$userId/$fileName';
 
-      // 1. Upload to Storage
+      // 2. Upload to Supabase Storage ('photos' bucket)
       await supabase.storage
           .from('photos')
           .uploadBinary(
@@ -42,11 +43,11 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
             fileOptions: const FileOptions(contentType: 'image/jpeg'),
           );
 
-      // 2. Insert into Database
+      // 3. Create a Database Record ('requests' table)
       await supabase.from('requests').insert({
         'user_id': userId,
         'original_image_path': filePath,
-        'style_type': 'Pending Selection', // Placeholder
+        'style_type': 'New Request', // Default title
         'status': 'pending',
       });
 
@@ -54,7 +55,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Photo uploaded successfully!')),
         );
-        Navigator.pop(context); // Return to Gallery
+        Navigator.pop(context); // Go back to Dashboard
       }
     } catch (e) {
       if (mounted) {
@@ -73,35 +74,66 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("New Request")),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text("New Request"),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
+        titleTextStyle: const TextStyle(
+          color: Colors.black,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
       body: Stack(
         children: [
-          Padding(
+          // FIX: SingleChildScrollView prevents "Bottom Overflow" errors
+          SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const SizedBox(height: 20),
+                const Icon(
+                  Icons.cloud_upload_outlined,
+                  size: 80,
+                  color: Colors.deepPurple,
+                ),
+                const SizedBox(height: 24),
                 const Text(
                   "Upload a photo to style",
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 8),
+                Text(
+                  "Choose a clear photo for the best results.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 48),
+
+                // Option 1: Camera
                 SelectionOptionCard(
                   icon: Icons.camera_alt_outlined,
                   title: "Take Photo",
                   onTap: () => _pickAndUpload(ImageSource.camera),
                 ),
                 const SizedBox(height: 20),
+
+                // Option 2: Gallery
                 SelectionOptionCard(
                   icon: Icons.photo_library_outlined,
                   title: "Choose from Gallery",
                   onTap: () => _pickAndUpload(ImageSource.gallery),
                 ),
+                const SizedBox(height: 40),
               ],
             ),
           ),
+
+          // Loading Overlay
           if (_isUploading)
             Container(
               color: Colors.black.withOpacity(0.5),
@@ -111,7 +143,13 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
                   children: [
                     CircularProgressIndicator(color: Colors.white),
                     SizedBox(height: 16),
-                    Text("Uploading...", style: TextStyle(color: Colors.white)),
+                    Text(
+                      "Uploading...",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
