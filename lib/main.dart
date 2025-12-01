@@ -1,6 +1,7 @@
 import 'package:cce_106_final_project/views/root_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // [1] Import this
+import 'package:cce_106_final_project/views/login_screen.dart';
 
 Future<void> main() async {
   // [2] Ensure Flutter bindings are initialized first
@@ -9,8 +10,8 @@ Future<void> main() async {
   // [3] Initialize Supabase
   // Replace these with your actual values from the Supabase Dashboard
   await Supabase.initialize(
-    url: 'YOUR_SUPABASE_URL',
-    anonKey: 'YOUR_SUPABASE_ANON_KEY',
+    url: 'https://mmkdrblmjvrsduikxutn.supabase.co',
+    anonKey: 'sb_publishable_IQsFcQrNxdV1zC35_Zjh2g_jenJUiU3',
   );
 
   runApp(const MyApp());
@@ -29,7 +30,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Roboto',
       ),
       debugShowCheckedModeBanner: false,
-      home: const RootScreen(),
+      home: const LoginScreen(),
     );
   }
 }
