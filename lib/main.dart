@@ -1,8 +1,18 @@
 import 'package:cce_106_final_project/views/root_screen.dart';
 import 'package:flutter/material.dart';
-// import 'views/gallery/gallery_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // [1] Import this
 
-void main() {
+Future<void> main() async {
+  // [2] Ensure Flutter bindings are initialized first
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // [3] Initialize Supabase
+  // Replace these with your actual values from the Supabase Dashboard
+  await Supabase.initialize(
+    url: 'YOUR_SUPABASE_URL',
+    anonKey: 'YOUR_SUPABASE_ANON_KEY',
+  );
+
   runApp(const MyApp());
 }
 
@@ -16,7 +26,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.white,
-        fontFamily: 'Roboto', // Or any font you prefer
+        fontFamily: 'Roboto',
       ),
       debugShowCheckedModeBanner: false,
       home: const RootScreen(),
