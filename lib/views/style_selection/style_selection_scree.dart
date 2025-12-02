@@ -33,14 +33,10 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
 
   final List<String> _availableStyles = const [
     "Anime",
-    "Oil Painting",
     "Cyberpunk",
-    "Pixel Art",
-    "Watercolor",
-    "Sketch",
     "Cartoon",
-    "Impressionist",
-    "Pop Art",
+    "Sketch",
+    "3D Model",
   ];
 
   // Enhanced version with better web handling

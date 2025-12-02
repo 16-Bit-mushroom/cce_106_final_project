@@ -7,64 +7,65 @@ class StabilityService {
   // 1. Go to your Stability AI dashboard and REVOKE your old key.
   // 2. Generate a NEW key.
   // 3. Paste your NEW key here for testing.
-  // 4. Before you launch your app, you MUST move this code to a
-  //    backend (like a Firebase Function) to protect your key.
+  // 4. Before you launch, move this to a backend (Firebase Functions).
   // ----------------------------------------------------
   static const String _apiKey =
-      'sk-YUaYsJOwcVrzeY9C26rtlcOtHaeegjmLULvtv4vd9BZilGq3';
+      'sk-gq3CRbzNcfClxYUViP6rktlj1BakLUDDUzTvsVDxRoGSD6W6';
 
   static const String _baseUrl = 'https://api.stability.ai';
 
-  // Your style prompts are excellent and will work well.
+  // --- 1. REVISED & SIMPLIFIED STYLE LIST ---
+  // We only keep styles that map to official Stability AI presets.
+  // This ensures 100% consistency.
   static final Map<String, String> stylePrompts = {
     "Anime":
-        "transform into anime art style, vibrant colors, large expressive eyes, detailed hair, professional anime artwork, cel-shaded, Japanese animation, manga illustration, anime character art",
-    "Oil Painting":
-        "convert to oil painting style, visible brush strokes, rich texture, classical painting, Renaissance masterpiece, dramatic lighting, canvas texture, impasto technique, old masters style",
+        "anime style, vibrant colors, expressive eyes, detailed hair, japanese animation, studio ghibli style, masterpiece",
     "Cyberpunk":
-        "transform into cyberpunk aesthetic, neon colors, futuristic elements, holographic displays, dystopian cityscape, glowing effects, technological enhancements, Blade Runner style, futuristic cybernetic",
-    "Pixel Art":
-        "convert to pixel art style, limited color palette, blocky retro video game aesthetics, 8-bit graphics, 16-bit sprite, dithering, video game art, retro gaming pixels",
-    "Watercolor":
-        "transform into watercolor painting, soft edges, transparent layers, beautiful color bleeds, delicate artwork, spontaneous brushwork, fluid colors, paper texture, watercolor wash",
-    "Sketch":
-        "convert to pencil sketch art, detailed line work, shading, cross-hatching, professional artist's sketch, hand-drawn illustration, charcoal drawing, monochrome sketch art",
+        "cyberpunk style, neon lights, futuristic, high tech, glowing elements, night city background, blade runner aesthetic",
     "Cartoon":
-        "transform into cartoon illustration style, bold outlines, exaggerated features, bright solid colors, modern animation, clean lines, Disney animation style, animated series art",
-    "Impressionist":
-        "convert to impressionist painting, short brush strokes, emphasis on light, visible movement, Monet style, spontaneous, outdoor scene, color harmony, impressionism art",
-    "Pop Art":
-        "transform into pop art style, bold colors, Ben-Day dots, comic book aesthetics, Andy Warhol style, graphic art, commercial art, vibrant patterns, pop culture art",
+        "comic book style, bold outlines, flat colors, graphic novel aesthetic, superhero comic, expressive, clean lines",
+    "Sketch":
+        "line art style, pencil sketch, charcoal drawing, rough contours, hatching, monochrome, artistic draft, hand drawn",
+    "3D Model":
+        "3d model style, clay render, blender 3d, isometric, smooth textures, soft lighting, 3d character design, c4d",
+  };
+
+  // --- 2. OFFICIAL PRESET MAPPING ---
+  // These map our UI names to Stability AI's internal "style_preset" enum.
+  // Source: Stability AI Developer Platform Documentation
+  static final Map<String, String> _apiPresets = {
+    "Anime": "anime",
+    "Cyberpunk": "neon-punk",
+    "Cartoon": "comic-book",
+    "Sketch": "line-art",
+    "3D Model": "3d-model",
   };
 
   static Future<Uint8List?> generateStyledImage({
     required Uint8List imageBytes,
     required String style,
-    double strength = 0.7, // This is the 'strength' from the docs
+    double strength = 0.75, // Slightly increased for stronger effect
   }) async {
     try {
-      print(
-        '🚀 Starting Stability AI API call for style: $style (v2beta SD3.5)',
-      );
+      print('🚀 Starting Stability AI (SD3) generation for: $style');
 
-      // --- Use the correct Image-to-Image endpoint ---
-      // This endpoint supports image-to-image.
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('$_baseUrl/v2beta/stable-image/generate/sd3'),
       );
 
-      // Add API key and Accept headers
       request.headers['Authorization'] = 'Bearer $_apiKey';
-      request.headers['Accept'] = 'image/*'; // We want raw image bytes back
+      request.headers['Accept'] = 'image/*';
 
-      // --- Add the REQUIRED 'mode' parameter ---
-      // The sd3 endpoint requires this to know you're doing img2img
+      // Required for Image-to-Image
       request.fields['mode'] = 'image-to-image';
 
-      // --- These parameters are all correct for this endpoint ---
+      // --- 3. ADD THE OFFICIAL PRESET PARAMETER ---
+      // This is the "magic key" for consistency.
+      if (_apiPresets.containsKey(style)) {
+        request.fields['style_preset'] = _apiPresets[style]!;
+      }
 
-      // The input image
       request.files.add(
         http.MultipartFile.fromBytes(
           'image',
@@ -73,41 +74,31 @@ class StabilityService {
         ),
       );
 
-      // The text prompt
       request.fields['prompt'] =
           stylePrompts[style] ?? "Apply $style style to this image";
 
-      // The strength parameter, required for img2img
+      // strength: 0.0 = original image, 1.0 = full AI replacement
+      // 0.75 is a sweet spot for "restyle but keep subject"
       request.fields['strength'] = strength.toStringAsFixed(2);
 
-      // Optional, but good to have
-      request.fields['negative_prompt'] =
-          'photorealistic, photo, low quality, bad composition, watermark, signature, ugly, deformed, blurry';
-
-      // Specify the output format
       request.fields['output_format'] = 'png';
+      request.fields['model'] = 'sd3.5-large'; // Explicitly use the best model
 
-      // You can also specify the model if you want, e.g., sd3.5-medium
-      // request.fields['model'] = 'sd3.5-medium';
-
-      print('⏳ Sending request to Stability AI...');
+      print('⏳ Sending request...');
       final response = await request.send();
 
-      // Handle the response
       if (response.statusCode == 200) {
         final bytes = await response.stream.toBytes();
-        print('✅ Successfully generated styled image: ${bytes.length} bytes');
+        print('✅ Success: ${bytes.length} bytes received.');
         return bytes;
       } else {
-        // If it's not 200, read the error message
         final errorBody = await response.stream.bytesToString();
-        print('❌ Stability AI API error: ${response.statusCode}');
-        print('❌ Error details: $errorBody');
+        print('❌ API Error: ${response.statusCode}');
+        print('❌ Details: $errorBody');
         return null;
       }
     } catch (e) {
-      // This is the ClientException (network error) you are seeing
-      print('💥 Error calling Stability AI API: $e');
+      print('💥 Exception: $e');
       return null;
     }
   }
