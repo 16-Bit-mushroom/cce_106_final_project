@@ -1,49 +1,41 @@
 import 'package:flutter/material.dart';
-import 'gallery/gallery_screen.dart';
+import 'package:cce_106_final_project/views/gallery/gallery_screen.dart'; // This is now "Requests/Home"
 import 'package:cce_106_final_project/views/selection/image_selection.dart';
-import '../views/albums/album_screen.dart';
+import 'package:cce_106_final_project/views/albums/album_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cce_106_final_project/views/login_screen.dart';
 
-// --- Placeholder Screens (So buttons work) ---
-class SearchScreen extends StatelessWidget {
-  const SearchScreen({super.key});
+// --- Placeholder Screens ---
+class PhotosTabScreen extends StatelessWidget {
+  const PhotosTabScreen({super.key});
   @override
-  Widget build(BuildContext context) => const Scaffold(
-    body: Center(
-      child: Text(
-        "Search Page",
-        style: TextStyle(fontSize: 24, color: Colors.grey),
-      ),
-    ),
-  );
-}
-
-class HistoryScreen extends StatelessWidget {
-  const HistoryScreen({super.key});
-  @override
-  Widget build(BuildContext context) => const Scaffold(
-    body: Center(
-      child: Text(
-        "History Page",
-        style: TextStyle(fontSize: 24, color: Colors.grey),
-      ),
-    ),
-  );
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: Text("All Photos Grid")));
 }
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
   @override
-  Widget build(BuildContext context) => const Scaffold(
-    body: Center(
-      child: Text(
-        "Profile Page",
-        style: TextStyle(fontSize: 24, color: Colors.grey),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () async {
+            await Supabase.instance.client.auth.signOut();
+            if (context.mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            }
+          },
+          child: const Text("Log Out"),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
-// --- Main Root Screen ---
 class RootScreen extends StatefulWidget {
   const RootScreen({super.key});
 
@@ -52,14 +44,14 @@ class RootScreen extends StatefulWidget {
 }
 
 class _RootScreenState extends State<RootScreen> {
-  // 0: Home, 1: Search, 2: History, 3: Profile
   int _currentIndex = 0;
+  static const double kMaxWidth = 800.0;
 
   final List<Widget> _screens = [
-    const GalleryScreen(),
-    const AlbumsScreen(),
-    const HistoryScreen(),
-    const ProfileScreen(),
+    const GalleryScreen(), // Tab 0: Requests / Dashboard
+    const AlbumsScreen(), // Tab 1: Albums
+    const PhotosTabScreen(), // Tab 2: Photos
+    const ProfileScreen(), // Tab 3: Profile (Avatar)
   ];
 
   void _onAddPhotoTapped() {
@@ -78,89 +70,115 @@ class _RootScreenState extends State<RootScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true, // Allows body to flow behind the floating nav bar
-      body: IndexedStack(index: _currentIndex, children: _screens),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          height: 80,
-          margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(40),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              // Tab 0: Home
-              _NavBarIcon(
-                icon: Icons.image,
-                label: "Gallery",
-                isSelected: _currentIndex == 0,
-                onTap: () => _onTabTapped(0),
-              ),
+      extendBody: true,
+      backgroundColor: Colors.grey[100],
 
-              // Tab 1: Search
-              _NavBarIcon(
-                icon: Icons.photo_album,
-                label: "Album",
-                isSelected: _currentIndex == 1,
-                onTap: () => _onTabTapped(1),
-              ),
-
-              // CENTER BUTTON: Add New (Floating Action)
-              GestureDetector(
-                onTap: _onAddPhotoTapped,
-                child: Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: const Color.fromARGB(
-                      255,
-                      235,
-                      153,
-                      47,
-                    ), // Pink accent color
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color.fromARGB(
-                          255,
-                          235,
-                          153,
-                          47,
-                        ).withOpacity(0.4),
-                        blurRadius: 0,
-                        offset: const Offset(0, 0),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.add, color: Colors.white, size: 32),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: kMaxWidth),
+          child: Container(
+            height: MediaQuery.of(context).size.height,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
                 ),
-              ),
+              ],
+            ),
+            // Use IndexedStack to keep state alive
+            child: IndexedStack(index: _currentIndex, children: _screens),
+          ),
+        ),
+      ),
 
-              // Tab 2: History
-              _NavBarIcon(
-                icon: Icons.history_rounded,
-                label: "History",
-                isSelected: _currentIndex == 2,
-                onTap: () => _onTabTapped(2),
+      bottomNavigationBar: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: kMaxWidth),
+          child: SafeArea(
+            child: Container(
+              height: 70, // Slightly more compact
+              margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(35),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Tab 0: Requests (Dashboard)
+                  _NavBarIcon(
+                    icon: Icons.dashboard_outlined,
+                    label: "Requests",
+                    isSelected: _currentIndex == 0,
+                    onTap: () => _onTabTapped(0),
+                  ),
 
-              // Tab 3: Profile
-              _NavBarIcon(
-                icon: Icons.person_rounded,
-                label: "Profile",
-                isSelected: _currentIndex == 3,
-                onTap: () => _onTabTapped(3),
+                  // Tab 1: Albums
+                  _NavBarIcon(
+                    icon: Icons.photo_library_outlined,
+                    label: "Albums",
+                    isSelected: _currentIndex == 1,
+                    onTap: () => _onTabTapped(1),
+                  ),
+
+                  // CENTER BUTTON: Add / Send Photos
+                  GestureDetector(
+                    onTap: _onAddPhotoTapped,
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: const Color(
+                          0xFFF8B553,
+                        ), // Matches the yellow/orange in wireframe
+                        shape: BoxShape
+                            .rectangle, // Wireframe has rounded square [cite: 106]
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFF8B553).withOpacity(0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+
+                  // Tab 2: Photos
+                  _NavBarIcon(
+                    icon: Icons.image_outlined,
+                    label: "Photos",
+                    isSelected: _currentIndex == 2,
+                    onTap: () => _onTabTapped(2),
+                  ),
+
+                  // Tab 3: Profile
+                  _NavBarIcon(
+                    icon: Icons.person_outline,
+                    label: "Profile",
+                    isSelected: _currentIndex == 3,
+                    onTap: () => _onTabTapped(3),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -168,7 +186,6 @@ class _RootScreenState extends State<RootScreen> {
   }
 }
 
-// Helper Widget for the Icons
 class _NavBarIcon extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -186,26 +203,22 @@ class _NavBarIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque, // Ensures the tap area is generous
+      behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             icon,
-            size: 26,
-            color: isSelected
-                ? Color.fromARGB(255, 235, 153, 47)
-                : Colors.grey.shade400,
+            size: 24,
+            color: isSelected ? Colors.black87 : Colors.grey.shade400,
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              color: isSelected
-                  ? Color.fromARGB(255, 102, 62, 9)
-                  : Colors.grey.shade400,
+              color: isSelected ? Colors.black87 : Colors.grey.shade400,
             ),
           ),
         ],

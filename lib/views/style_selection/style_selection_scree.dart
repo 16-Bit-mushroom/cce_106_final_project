@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'dart:io' show File; // Only import File from dart:io
 import 'dart:typed_data'; // For Uint8List
 import 'package:cce_106_final_project/services/stability_service.dart';
-// import 'package:ai_styler_app/views/style_selection/components/style_option_card.dart';
 
 class StyleSelectionScreen extends StatefulWidget {
   // It's better to accept bytes or a path/url
@@ -13,7 +12,15 @@ class StyleSelectionScreen extends StatefulWidget {
   final String? imagePath; // For native mobile (File path) or network URL
   final Uint8List? imageBytes; // For web (image bytes from image_picker)
 
-  const StyleSelectionScreen({super.key, this.imagePath, this.imageBytes});
+  // NEW: Accept request data to track ID
+  final Map<String, dynamic>? requestData;
+
+  const StyleSelectionScreen({
+    super.key,
+    this.imagePath,
+    this.imageBytes,
+    this.requestData,
+  });
 
   @override
   State<StyleSelectionScreen> createState() => _StyleSelectionScreenState();
@@ -108,14 +115,12 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
       print('🎨 Starting style application for: $_selectedStyle');
       print('📸 Image bytes available: ${widget.imageBytes!.length} bytes');
 
-      // --- THIS IS THE FIX ---
       // Call the correct function (generateStyledImage) and pass it
       // the user's selected image and style.
       Uint8List? styledImageBytes = await StabilityService.generateStyledImage(
         imageBytes: widget.imageBytes!,
         style: _selectedStyle!,
       );
-      // -----------------------
 
       if (styledImageBytes != null) {
         print('✅ Styled image generated successfully');
@@ -147,6 +152,8 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
           originalImageBytes: originalImageBytes, // Pass the original
           styledImageBytes: styledImageBytes, // Pass the new one
           styleName: _selectedStyle!,
+          // NEW: Pass the request data forward
+          requestData: widget.requestData,
         ),
       ),
     );
