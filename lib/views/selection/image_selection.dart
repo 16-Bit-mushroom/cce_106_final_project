@@ -12,18 +12,68 @@ class ImageSelectionScreen extends StatefulWidget {
 
 class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   bool _isUploading = false;
+  final TextEditingController _journalController = TextEditingController();
 
-  Future<void> _pickAndUpload(ImageSource source) async {
-    // 1. Pick the image
+  // 1. First, pick the image
+  Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(
       source: source,
-      maxWidth: 1920, // Limit size for easier AI processing
+      maxWidth: 1920,
       imageQuality: 80,
     );
 
-    if (image == null) return; // User cancelled
+    if (image == null) return;
 
+    // 2. Instead of uploading immediately, show the Journal Dialog
+    if (mounted) {
+      _showJournalDialog(image);
+    }
+  }
+
+  // 3. The "Cutting Corners" Input Screen (A Dialog)
+  void _showJournalDialog(XFile image) {
+    _journalController.clear(); // Reset text
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Force them to choose or cancel
+      builder: (context) => AlertDialog(
+        title: const Text("Add Journal Entry"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Write a short caption or memory for this photo:"),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _journalController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: "e.g., 'Summer trip to Bohol, 2025'",
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Cancel
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              _uploadRequest(image, _journalController.text.trim()); // Proceed
+            },
+            child: const Text("Send Request"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 4. The Actual Upload Logic
+  Future<void> _uploadRequest(XFile image, String journalText) async {
     setState(() => _isUploading = true);
 
     try {
@@ -34,7 +84,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
       final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
       final filePath = 'raw/$userId/$fileName';
 
-      // 2. Upload to Supabase Storage ('photos' bucket)
+      // Upload Image
       await supabase.storage
           .from('photos')
           .uploadBinary(
@@ -43,17 +93,18 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
             fileOptions: const FileOptions(contentType: 'image/jpeg'),
           );
 
-      // 3. Create a Database Record ('requests' table)
+      // Insert DB Record with the Journal Text (notes)
       await supabase.from('requests').insert({
         'user_id': userId,
         'original_image_path': filePath,
-        'style_type': 'New Request', // Default title
+        'style_type': 'New Request',
         'status': 'pending',
+        'notes': journalText, // <--- SAVING THE JOURNAL ENTRY HERE
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Photo uploaded successfully!')),
+          const SnackBar(content: Text('Request sent successfully!')),
         );
         Navigator.pop(context); // Go back to Dashboard
       }
@@ -69,6 +120,12 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _journalController.dispose();
+    super.dispose();
   }
 
   @override
@@ -88,7 +145,6 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
       ),
       body: Stack(
         children: [
-          // FIX: SingleChildScrollView prevents "Bottom Overflow" errors
           SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
             child: Column(
@@ -108,7 +164,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Choose a clear photo for the best results.",
+                  "You'll be asked to add a journal entry after selecting a photo.",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey[600]),
                 ),
@@ -118,7 +174,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
                 SelectionOptionCard(
                   icon: Icons.camera_alt_outlined,
                   title: "Take Photo",
-                  onTap: () => _pickAndUpload(ImageSource.camera),
+                  onTap: () => _pickImage(ImageSource.camera),
                 ),
                 const SizedBox(height: 20),
 
@@ -126,14 +182,13 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
                 SelectionOptionCard(
                   icon: Icons.photo_library_outlined,
                   title: "Choose from Gallery",
-                  onTap: () => _pickAndUpload(ImageSource.gallery),
+                  onTap: () => _pickImage(ImageSource.gallery),
                 ),
                 const SizedBox(height: 40),
               ],
             ),
           ),
 
-          // Loading Overlay
           if (_isUploading)
             Container(
               color: Colors.black.withOpacity(0.5),
