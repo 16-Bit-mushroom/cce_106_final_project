@@ -14,25 +14,21 @@ class StabilityService {
 
   static const String _baseUrl = 'https://api.stability.ai';
 
-  // --- 1. REVISED & SIMPLIFIED STYLE LIST ---
-  // We only keep styles that map to official Stability AI presets.
-  // This ensures 100% consistency.
+  // --- 1. REVISED PROMPTS (Focus on Style, not Content) ---
   static final Map<String, String> stylePrompts = {
     "Anime":
-        "anime style, vibrant colors, expressive eyes, detailed hair, japanese animation, studio ghibli style, masterpiece",
+        "anime style, cel shaded, vibrant colors, studio ghibli style, detailed linework, smooth textures",
     "Cyberpunk":
-        "cyberpunk style, neon lights, futuristic, high tech, glowing elements, night city background, blade runner aesthetic",
+        "cyberpunk style, neon lighting overlay, high contrast, futuristic color palette, glowing edges",
     "Cartoon":
-        "comic book style, bold outlines, flat colors, graphic novel aesthetic, superhero comic, expressive, clean lines",
+        "comic book art style, thick black outlines, flat colors, halftone dots, graphic novel aesthetic, expressive linework",
     "Sketch":
-        "line art style, pencil sketch, charcoal drawing, rough contours, hatching, monochrome, artistic draft, hand drawn",
+        "pencil sketch style, graphite texture, hatching, monochrome, rough paper texture, hand drawn strokes",
     "3D Model":
-        "3d model style, clay render, blender 3d, isometric, smooth textures, soft lighting, 3d character design, c4d",
+        "3d render style, clay material, blender 3d, smooth lighting, isometric look, soft shadows",
   };
 
   // --- 2. OFFICIAL PRESET MAPPING ---
-  // These map our UI names to Stability AI's internal "style_preset" enum.
-  // Source: Stability AI Developer Platform Documentation
   static final Map<String, String> _apiPresets = {
     "Anime": "anime",
     "Cyberpunk": "neon-punk",
@@ -44,24 +40,26 @@ class StabilityService {
   static Future<Uint8List?> generateStyledImage({
     required Uint8List imageBytes,
     required String style,
-    double strength = 0.75, // Slightly increased for stronger effect
+    // --- CRITICAL FIX ---
+    // 0.35 means "Change the image by 35%".
+    // This keeps the original subject but applies the style.
+    // Previous 0.75 was too high, causing it to generate new images.
+    double strength = 0.35,
   }) async {
     try {
-      print('🚀 Starting Stability AI (SD3) generation for: $style');
+      print(
+        '🚀 Starting Stability AI (Core) generation for: $style with strength $strength',
+      );
 
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('$_baseUrl/v2beta/stable-image/generate/sd3'),
+        Uri.parse('$_baseUrl/v2beta/stable-image/generate/core'),
       );
 
       request.headers['Authorization'] = 'Bearer $_apiKey';
       request.headers['Accept'] = 'image/*';
 
-      // Required for Image-to-Image
-      request.fields['mode'] = 'image-to-image';
-
-      // --- 3. ADD THE OFFICIAL PRESET PARAMETER ---
-      // This is the "magic key" for consistency.
+      // 3. ADD THE OFFICIAL PRESET PARAMETER
       if (_apiPresets.containsKey(style)) {
         request.fields['style_preset'] = _apiPresets[style]!;
       }
@@ -77,12 +75,10 @@ class StabilityService {
       request.fields['prompt'] =
           stylePrompts[style] ?? "Apply $style style to this image";
 
-      // strength: 0.0 = original image, 1.0 = full AI replacement
-      // 0.75 is a sweet spot for "restyle but keep subject"
+      // Fix: Lower strength ensures we stick to the original photo
       request.fields['strength'] = strength.toStringAsFixed(2);
 
       request.fields['output_format'] = 'png';
-      request.fields['model'] = 'sd3.5-large'; // Explicitly use the best model
 
       print('⏳ Sending request...');
       final response = await request.send();

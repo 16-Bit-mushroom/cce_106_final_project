@@ -14,7 +14,16 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   bool _isUploading = false;
   final TextEditingController _journalController = TextEditingController();
 
-  // 1. First, pick the image
+  // Matches the Stability Service list exactly
+  final List<String> _styles = [
+    "Anime",
+    "Cyberpunk",
+    "Cartoon",
+    "Sketch",
+    "3D Model",
+  ];
+  String _selectedStyle = "Anime"; // Default
+
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(
@@ -25,54 +34,101 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
 
     if (image == null) return;
 
-    // 2. Instead of uploading immediately, show the Journal Dialog
     if (mounted) {
-      _showJournalDialog(image);
+      _showDetailsDialog(image);
     }
   }
 
-  // 3. The "Cutting Corners" Input Screen (A Dialog)
-  void _showJournalDialog(XFile image) {
-    _journalController.clear(); // Reset text
+  void _showDetailsDialog(XFile image) {
+    _journalController.clear();
+    // Reset style to default each time
+    setState(() => _selectedStyle = _styles.first);
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Force them to choose or cancel
-      builder: (context) => AlertDialog(
-        title: const Text("Add Journal Entry"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text("Write a short caption or memory for this photo:"),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _journalController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: "e.g., 'Summer trip to Bohol, 2025'",
-                border: OutlineInputBorder(),
+      barrierDismissible: false,
+      builder: (context) {
+        // We use a StatefulBuilder specifically for the dialog to handle
+        // the dropdown state updating *inside* the dialog.
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text("Customize Request"),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. Style Selection
+                    const Text(
+                      "Choose a Style:",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedStyle,
+                          isExpanded: true,
+                          items: _styles.map((String style) {
+                            return DropdownMenuItem<String>(
+                              value: style,
+                              child: Text(style),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setStateDialog(() {
+                              _selectedStyle = newValue!;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 2. Journal Entry
+                    const Text(
+                      "Journal Entry:",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _journalController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        hintText: "e.g., 'Summer trip to Bohol, 2025'",
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.all(12),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context), // Cancel
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              _uploadRequest(image, _journalController.text.trim()); // Proceed
-            },
-            child: const Text("Send Request"),
-          ),
-        ],
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _uploadRequest(image, _journalController.text.trim());
+                  },
+                  child: const Text("Send Request"),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
-  // 4. The Actual Upload Logic
   Future<void> _uploadRequest(XFile image, String journalText) async {
     setState(() => _isUploading = true);
 
@@ -84,7 +140,6 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
       final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
       final filePath = 'raw/$userId/$fileName';
 
-      // Upload Image
       await supabase.storage
           .from('photos')
           .uploadBinary(
@@ -93,20 +148,19 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
             fileOptions: const FileOptions(contentType: 'image/jpeg'),
           );
 
-      // Insert DB Record with the Journal Text (notes)
       await supabase.from('requests').insert({
         'user_id': userId,
         'original_image_path': filePath,
-        'style_type': 'New Request',
+        'style_type': _selectedStyle, // <--- SAVING THE SELECTED STYLE
         'status': 'pending',
-        'notes': journalText, // <--- SAVING THE JOURNAL ENTRY HERE
+        'notes': journalText,
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Request sent successfully!')),
         );
-        Navigator.pop(context); // Go back to Dashboard
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -132,17 +186,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text("New Request"),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        titleTextStyle: const TextStyle(
-          color: Colors.black,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      appBar: AppBar(title: const Text("New Request"), elevation: 0),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -164,49 +208,30 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "You'll be asked to add a journal entry after selecting a photo.",
+                  "Choose a style and add a memory to your photo.",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 48),
-
-                // Option 1: Camera
                 SelectionOptionCard(
                   icon: Icons.camera_alt_outlined,
                   title: "Take Photo",
                   onTap: () => _pickImage(ImageSource.camera),
                 ),
                 const SizedBox(height: 20),
-
-                // Option 2: Gallery
                 SelectionOptionCard(
                   icon: Icons.photo_library_outlined,
                   title: "Choose from Gallery",
                   onTap: () => _pickImage(ImageSource.gallery),
                 ),
-                const SizedBox(height: 40),
               ],
             ),
           ),
-
           if (_isUploading)
             Container(
               color: Colors.black.withOpacity(0.5),
               child: const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Colors.white),
-                    SizedBox(height: 16),
-                    Text(
-                      "Uploading...",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+                child: CircularProgressIndicator(color: Colors.white),
               ),
             ),
         ],
