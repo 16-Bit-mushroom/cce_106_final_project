@@ -4,31 +4,28 @@ import 'package:http/http.dart' as http;
 
 class StabilityService {
   // ----------------  SECURITY WARNING  ----------------
-  // 1. Go to your Stability AI dashboard and REVOKE your old key.
-  // 2. Generate a NEW key.
-  // 3. Paste your NEW key here for testing.
-  // 4. Before you launch, move this to a backend (Firebase Functions).
+  // Move this key to a backend before releasing to production.
   // ----------------------------------------------------
   static const String _apiKey =
-      'sk-gq3CRbzNcfClxYUViP6rktlj1BakLUDDUzTvsVDxRoGSD6W6';
+      'sk-QVdw3nPPDjNAGACjroVUKifISASs9ZfQLIWscvI50aNvOSHQ';
 
+  // DOCUMENTATION SOURCE: Page 126-131 of your PDF (Control > Structure)
   static const String _baseUrl = 'https://api.stability.ai';
 
-  // --- 1. REVISED PROMPTS (Focus on Style, not Content) ---
+  // --- 1. REVISED PROMPTS (Descriptive backup for the preset) ---
   static final Map<String, String> stylePrompts = {
     "Anime":
-        "anime style, cel shaded, vibrant colors, studio ghibli style, detailed linework, smooth textures",
-    "Cyberpunk":
-        "cyberpunk style, neon lighting overlay, high contrast, futuristic color palette, glowing edges",
+        "anime artwork, studio ghibli style, vibrant colors, detailed line art",
+    "Cyberpunk": "cyberpunk city style, neon lights, futuristic, high contrast",
     "Cartoon":
-        "comic book art style, thick black outlines, flat colors, halftone dots, graphic novel aesthetic, expressive linework",
+        "comic book style, thick black outlines, flat bold colors, halftone dots",
     "Sketch":
-        "pencil sketch style, graphite texture, hatching, monochrome, rough paper texture, hand drawn strokes",
-    "3D Model":
-        "3d render style, clay material, blender 3d, smooth lighting, isometric look, soft shadows",
+        "charcoal sketch, rough pencil lines, graphite texture, monochrome",
+    "3D Model": "3d clay render, isometric, blender 3d, smooth lighting",
   };
 
-  // --- 2. OFFICIAL PRESET MAPPING ---
+  // --- 2. OFFICIAL PRESET MAPPING (Source: PDF Page 130) ---
+  // These map strictly to the Stability AI 'Structure' endpoint enums.
   static final Map<String, String> _apiPresets = {
     "Anime": "anime",
     "Cyberpunk": "neon-punk",
@@ -40,30 +37,33 @@ class StabilityService {
   static Future<Uint8List?> generateStyledImage({
     required Uint8List imageBytes,
     required String style,
-    // --- CRITICAL FIX ---
-    // 0.35 means "Change the image by 35%".
-    // This keeps the original subject but applies the style.
-    // Previous 0.75 was too high, causing it to generate new images.
-    double strength = 0.35,
+    // control_strength (0.0 - 1.0):
+    // 0.7 is the sweet spot. It forces the AI to keep the shape/layout of the photo
+    // while allowing it to completely repaint the textures.
+    double controlStrength = 0.7,
   }) async {
     try {
       print(
-        '🚀 Starting Stability AI (Core) generation for: $style with strength $strength',
+        '🚀 Starting Stability AI (Structure Control) generation for: $style',
       );
 
+      // --- CRITICAL FIX: Use the 'Structure' endpoint ---
+      // This endpoint preserves the geometry of the photo (faces, objects)
+      // but repaints it in the requested style.
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('$_baseUrl/v2beta/stable-image/generate/core'),
+        Uri.parse('$_baseUrl/v2beta/stable-image/control/structure'),
       );
 
       request.headers['Authorization'] = 'Bearer $_apiKey';
       request.headers['Accept'] = 'image/*';
 
-      // 3. ADD THE OFFICIAL PRESET PARAMETER
+      // 1. Add the Style Preset (The most important part)
       if (_apiPresets.containsKey(style)) {
         request.fields['style_preset'] = _apiPresets[style]!;
       }
 
+      // 2. Add the Image
       request.files.add(
         http.MultipartFile.fromBytes(
           'image',
@@ -72,13 +72,16 @@ class StabilityService {
         ),
       );
 
+      // 3. Add Parameters per PDF Page 128-130
       request.fields['prompt'] =
           stylePrompts[style] ?? "Apply $style style to this image";
 
-      // Fix: Lower strength ensures we stick to the original photo
-      request.fields['strength'] = strength.toStringAsFixed(2);
+      // 'control_strength' replaces 'strength' for this endpoint.
+      // Default is 0.7. Lower = loose structure. Higher = strict structure.
+      request.fields['control_strength'] = controlStrength.toStringAsFixed(2);
 
       request.fields['output_format'] = 'png';
+      request.fields['seed'] = '0'; // 0 = Random seed
 
       print('⏳ Sending request...');
       final response = await request.send();
@@ -91,6 +94,7 @@ class StabilityService {
         final errorBody = await response.stream.bytesToString();
         print('❌ API Error: ${response.statusCode}');
         print('❌ Details: $errorBody');
+        // This will print the exact reason (e.g. "invalid_parameter")
         return null;
       }
     } catch (e) {
