@@ -1,53 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cce_106_final_project/views/gallery/gallery_screen.dart';
 import 'package:cce_106_final_project/views/selection/image_selection.dart';
+import 'package:cce_106_final_project/views/admin/admin_screen.dart'; // <-- Import the new screen
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:cce_106_final_project/views/login_screen.dart';
-
-// --- Admin Placeholder (To be built later) ---
-class AdminScreen extends StatelessWidget {
-  const AdminScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Admin Panel"),
-        automaticallyImplyLeading: false,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.admin_panel_settings,
-              size: 64,
-              color: Colors.grey,
-            ),
-            const SizedBox(height: 16),
-            const Text("User Management Coming Soon"),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () async {
-                await Supabase.instance.client.auth.signOut();
-                if (context.mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text("Log Out"),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class RootScreen extends StatefulWidget {
   const RootScreen({super.key});
@@ -58,10 +13,38 @@ class RootScreen extends StatefulWidget {
 
 class _RootScreenState extends State<RootScreen> {
   int _currentIndex = 0;
+  String _userRole = 'user'; // Default role
+  bool _loadingRole = true;
   static const double kMaxWidth = 800.0;
 
-  // Only 2 screens now: Dashboard (Requests) and Admin
-  final List<Widget> _screens = [const GalleryScreen(), const AdminScreen()];
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserRole();
+  }
+
+  // --- Fetch the user's role from Supabase 'profiles' table ---
+  Future<void> _fetchUserRole() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser!.id;
+      final data = await Supabase.instance.client
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+
+      if (mounted) {
+        setState(() {
+          _userRole = data['role'] ?? 'user';
+          _loadingRole = false;
+        });
+      }
+    } catch (e) {
+      print("Error fetching role: $e");
+      // Fallback to 'user' if fetch fails, but stop loading
+      if (mounted) setState(() => _loadingRole = false);
+    }
+  }
 
   void _onAddPhotoTapped() {
     Navigator.push(
@@ -78,9 +61,23 @@ class _RootScreenState extends State<RootScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Show loading spinner while checking admin status
+    if (_loadingRole) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // 2. Define our screens
+    final List<Widget> screens = [
+      const GalleryScreen(),
+      // Pass the fetched role to AdminScreen so it knows what to show
+      AdminScreen(currentUserRole: _userRole),
+    ];
+
     return Scaffold(
       extendBody: true,
       backgroundColor: Colors.grey[100],
+
+      // Main Body Content
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: kMaxWidth),
@@ -95,10 +92,13 @@ class _RootScreenState extends State<RootScreen> {
                 ),
               ],
             ),
-            child: IndexedStack(index: _currentIndex, children: _screens),
+            // IndexedStack keeps the state of screens alive when switching tabs
+            child: IndexedStack(index: _currentIndex, children: screens),
           ),
         ),
       ),
+
+      // Bottom Navigation Bar
       bottomNavigationBar: Align(
         alignment: Alignment.bottomCenter,
         child: ConstrainedBox(
@@ -121,7 +121,7 @@ class _RootScreenState extends State<RootScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // 1. Dashboard / Requests
+                  // Tab 1: Dashboard / Requests
                   _NavBarIcon(
                     icon: Icons.dashboard_outlined,
                     label: "Requests",
@@ -129,14 +129,14 @@ class _RootScreenState extends State<RootScreen> {
                     onTap: () => _onTabTapped(0),
                   ),
 
-                  // 2. ADD BUTTON (Center)
+                  // Center Button: Add New Request
                   GestureDetector(
                     onTap: _onAddPhotoTapped,
                     child: Container(
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8B553),
+                        color: const Color(0xFFF8B553), // App Accent Color
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
@@ -154,10 +154,13 @@ class _RootScreenState extends State<RootScreen> {
                     ),
                   ),
 
-                  // 3. Admin
+                  // Tab 2: Admin / Profile
                   _NavBarIcon(
-                    icon: Icons.admin_panel_settings_outlined,
-                    label: "Admin",
+                    // Change icon based on role for clear visual feedback
+                    icon: _userRole == 'admin'
+                        ? Icons.admin_panel_settings_outlined
+                        : Icons.person_outline,
+                    label: _userRole == 'admin' ? "Admin" : "Profile",
                     isSelected: _currentIndex == 1,
                     onTap: () => _onTabTapped(1),
                   ),
@@ -171,6 +174,7 @@ class _RootScreenState extends State<RootScreen> {
   }
 }
 
+// Helper Widget for Nav Icons
 class _NavBarIcon extends StatelessWidget {
   final IconData icon;
   final String label;
