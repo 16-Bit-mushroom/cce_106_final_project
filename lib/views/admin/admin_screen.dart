@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cce_106_final_project/views/login_screen.dart';
 
 class AdminScreen extends StatefulWidget {
-  // We pass the role in so we know what to show
   final String currentUserRole;
 
   const AdminScreen({super.key, required this.currentUserRole});
@@ -15,9 +14,12 @@ class AdminScreen extends StatefulWidget {
 class _AdminScreenState extends State<AdminScreen> {
   // --- ACTIONS ---
 
-  // 1. Update User Role
   Future<void> _updateRole(String userId, String currentRole) async {
     String? selectedRole = currentRole;
+
+    // Quick fix: If the current role is 'user' (from old data), default dropdown to 'staff'
+    if (selectedRole == 'user') selectedRole = 'staff';
+
     await showDialog(
       context: context,
       builder: (context) {
@@ -29,7 +31,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 value: selectedRole,
                 isExpanded: true,
                 items: const [
-                  DropdownMenuItem(value: 'user', child: Text('User')),
+                  // REMOVED: 'User' option is gone as requested.
                   DropdownMenuItem(value: 'staff', child: Text('Staff')),
                   DropdownMenuItem(value: 'admin', child: Text('Admin')),
                 ],
@@ -48,11 +50,31 @@ class _AdminScreenState extends State<AdminScreen> {
               onPressed: () async {
                 Navigator.pop(context);
                 if (selectedRole != null && selectedRole != currentRole) {
-                  await Supabase.instance.client
-                      .from('profiles')
-                      .update({'role': selectedRole})
-                      .eq('id', userId);
-                  if (mounted) setState(() {}); // Refresh list
+                  try {
+                    await Supabase.instance.client
+                        .from('profiles')
+                        .update({'role': selectedRole})
+                        .eq('id', userId);
+
+                    if (mounted) {
+                      setState(() {}); // Refresh list
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Role updated successfully"),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Update failed: $e"),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
                 }
               },
               child: const Text("Save"),
@@ -63,8 +85,6 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  // 2. Delete User (Note: This deletes from 'profiles'.
-  // Real Auth deletion requires a backend Edge Function, but this works for MVP UI)
   Future<void> _deleteUser(String userId) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -89,12 +109,25 @@ class _AdminScreenState extends State<AdminScreen> {
     );
 
     if (confirm == true) {
-      await Supabase.instance.client.from('profiles').delete().eq('id', userId);
-      if (mounted) setState(() {}); // Refresh list
+      try {
+        await Supabase.instance.client
+            .from('profiles')
+            .delete()
+            .eq('id', userId);
+        if (mounted) setState(() {});
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Delete failed: $e"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
-  // 3. Log Out
   Future<void> _signOut() async {
     await Supabase.instance.client.auth.signOut();
     if (mounted) {
@@ -154,7 +187,7 @@ class _AdminScreenState extends State<AdminScreen> {
         stream: Supabase.instance.client
             .from('profiles')
             .stream(primaryKey: ['id'])
-            .order('role', ascending: true), // Sort by role
+            .order('role', ascending: true),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -196,9 +229,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   ),
                   subtitle: Text("Role: ${role.toString().toUpperCase()}"),
                   trailing: isMe
-                      ? const Chip(
-                          label: Text("You"),
-                        ) // Can't delete/edit yourself easily
+                      ? const Chip(label: Text("You"))
                       : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [

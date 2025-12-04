@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cce_106_final_project/views/gallery/gallery_screen.dart';
 import 'package:cce_106_final_project/views/selection/image_selection.dart';
-import 'package:cce_106_final_project/views/admin/admin_screen.dart'; // <-- Import the new screen
+import 'package:cce_106_final_project/views/admin/admin_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RootScreen extends StatefulWidget {
