@@ -1,35 +1,48 @@
 import 'package:flutter/material.dart';
-import 'package:cce_106_final_project/views/gallery/gallery_screen.dart'; // This is now "Requests/Home"
+import 'package:cce_106_final_project/views/gallery/gallery_screen.dart';
 import 'package:cce_106_final_project/views/selection/image_selection.dart';
-import 'package:cce_106_final_project/views/albums/album_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cce_106_final_project/views/login_screen.dart';
 
-// --- Placeholder Screens ---
-class PhotosTabScreen extends StatelessWidget {
-  const PhotosTabScreen({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: Text("All Photos Grid")));
-}
-
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+// --- Admin Placeholder (To be built later) ---
+class AdminScreen extends StatelessWidget {
+  const AdminScreen({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Admin Panel"),
+        automaticallyImplyLeading: false,
+      ),
       body: Center(
-        child: ElevatedButton(
-          onPressed: () async {
-            await Supabase.instance.client.auth.signOut();
-            if (context.mounted) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            }
-          },
-          child: const Text("Log Out"),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.admin_panel_settings,
+              size: 64,
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 16),
+            const Text("User Management Coming Soon"),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () async {
+                await Supabase.instance.client.auth.signOut();
+                if (context.mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text("Log Out"),
+            ),
+          ],
         ),
       ),
     );
@@ -47,12 +60,8 @@ class _RootScreenState extends State<RootScreen> {
   int _currentIndex = 0;
   static const double kMaxWidth = 800.0;
 
-  final List<Widget> _screens = [
-    const GalleryScreen(), // Tab 0: Requests / Dashboard
-    const AlbumsScreen(), // Tab 1: Albums
-    const PhotosTabScreen(), // Tab 2: Photos
-    const ProfileScreen(), // Tab 3: Profile (Avatar)
-  ];
+  // Only 2 screens now: Dashboard (Requests) and Admin
+  final List<Widget> _screens = [const GalleryScreen(), const AdminScreen()];
 
   void _onAddPhotoTapped() {
     Navigator.push(
@@ -72,7 +81,6 @@ class _RootScreenState extends State<RootScreen> {
     return Scaffold(
       extendBody: true,
       backgroundColor: Colors.grey[100],
-
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: kMaxWidth),
@@ -84,23 +92,20 @@ class _RootScreenState extends State<RootScreen> {
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
                   blurRadius: 20,
-                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            // Use IndexedStack to keep state alive
             child: IndexedStack(index: _currentIndex, children: _screens),
           ),
         ),
       ),
-
       bottomNavigationBar: Align(
         alignment: Alignment.bottomCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: kMaxWidth),
           child: SafeArea(
             child: Container(
-              height: 70, // Slightly more compact
+              height: 70,
               margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -116,7 +121,7 @@ class _RootScreenState extends State<RootScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // Tab 0: Requests (Dashboard)
+                  // 1. Dashboard / Requests
                   _NavBarIcon(
                     icon: Icons.dashboard_outlined,
                     label: "Requests",
@@ -124,26 +129,14 @@ class _RootScreenState extends State<RootScreen> {
                     onTap: () => _onTabTapped(0),
                   ),
 
-                  // Tab 1: Albums
-                  _NavBarIcon(
-                    icon: Icons.photo_library_outlined,
-                    label: "Albums",
-                    isSelected: _currentIndex == 1,
-                    onTap: () => _onTabTapped(1),
-                  ),
-
-                  // CENTER BUTTON: Add / Send Photos
+                  // 2. ADD BUTTON (Center)
                   GestureDetector(
                     onTap: _onAddPhotoTapped,
                     child: Container(
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: const Color(
-                          0xFFF8B553,
-                        ), // Matches the yellow/orange in wireframe
-                        shape: BoxShape
-                            .rectangle, // Wireframe has rounded square [cite: 106]
+                        color: const Color(0xFFF8B553),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
@@ -161,20 +154,12 @@ class _RootScreenState extends State<RootScreen> {
                     ),
                   ),
 
-                  // Tab 2: Photos
+                  // 3. Admin
                   _NavBarIcon(
-                    icon: Icons.image_outlined,
-                    label: "Photos",
-                    isSelected: _currentIndex == 2,
-                    onTap: () => _onTabTapped(2),
-                  ),
-
-                  // Tab 3: Profile
-                  _NavBarIcon(
-                    icon: Icons.person_outline,
-                    label: "Profile",
-                    isSelected: _currentIndex == 3,
-                    onTap: () => _onTabTapped(3),
+                    icon: Icons.admin_panel_settings_outlined,
+                    label: "Admin",
+                    isSelected: _currentIndex == 1,
+                    onTap: () => _onTabTapped(1),
                   ),
                 ],
               ),

@@ -14,7 +14,6 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   bool _isUploading = false;
   final TextEditingController _journalController = TextEditingController();
 
-  // Matches the Stability Service list exactly
   final List<String> _styles = [
     "Anime",
     "Cyberpunk",
@@ -22,7 +21,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
     "Sketch",
     "3D Model",
   ];
-  String _selectedStyle = "Anime"; // Default
+  String _selectedStyle = "Anime";
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
@@ -41,25 +40,21 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
 
   void _showDetailsDialog(XFile image) {
     _journalController.clear();
-    // Reset style to default each time
     setState(() => _selectedStyle = _styles.first);
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        // We use a StatefulBuilder specifically for the dialog to handle
-        // the dropdown state updating *inside* the dialog.
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
-              title: const Text("Customize Request"),
+              title: const Text("New Request"),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. Style Selection
                     const Text(
                       "Choose a Style:",
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -90,8 +85,6 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // 2. Journal Entry
                     const Text(
                       "Journal Entry:",
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -119,7 +112,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
                     Navigator.pop(context);
                     _uploadRequest(image, _journalController.text.trim());
                   },
-                  child: const Text("Send Request"),
+                  child: const Text("Create"),
                 ),
               ],
             );
@@ -151,14 +144,14 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
       await supabase.from('requests').insert({
         'user_id': userId,
         'original_image_path': filePath,
-        'style_type': _selectedStyle, // <--- SAVING THE SELECTED STYLE
+        'style_type': _selectedStyle,
         'status': 'pending',
         'notes': journalText,
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Request sent successfully!')),
+          const SnackBar(content: Text('Request created successfully!')),
         );
         Navigator.pop(context);
       }
@@ -186,7 +179,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text("New Request"), elevation: 0),
+      appBar: AppBar(title: const Text("Create Request"), elevation: 0),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -196,32 +189,28 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
               children: [
                 const SizedBox(height: 20),
                 const Icon(
-                  Icons.cloud_upload_outlined,
+                  Icons.folder_open_outlined,
                   size: 80,
                   color: Colors.deepPurple,
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  "Upload a photo to style",
+                  "Import Photo",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Choose a style and add a memory to your photo.",
+                  "Select a photo from your files to start a new styling request.",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 48),
+
+                // Only one option now
                 SelectionOptionCard(
-                  icon: Icons.camera_alt_outlined,
-                  title: "Take Photo",
-                  onTap: () => _pickImage(ImageSource.camera),
-                ),
-                const SizedBox(height: 20),
-                SelectionOptionCard(
-                  icon: Icons.photo_library_outlined,
-                  title: "Choose from Gallery",
+                  icon: Icons.upload_file,
+                  title: "Choose from Files",
                   onTap: () => _pickImage(ImageSource.gallery),
                 ),
               ],
