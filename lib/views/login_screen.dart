@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cce_106_final_project/views/root_screen.dart';
-import 'package:cce_106_final_project/views/albums/customer_albums_screen.dart';
+// REMOVED: import customer_albums_screen.dart (It no longer exists)
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,7 +16,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   Future<void> _handleAuth({required bool isLogin}) async {
-    // 1. Basic Validation
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter both email and password')),
@@ -35,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
           password: _passwordController.text.trim(),
         );
         if (response.user != null) {
-          _checkRoleAndNavigate(response.user!.id);
+          _navigateToDashboard();
         }
       } else {
         // Sign Up
@@ -45,24 +44,23 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
         if (response.user != null) {
-          // Manually create profile
+          // Create profile
           await supabase.from('profiles').insert({
             'id': response.user!.id,
             'email': response.user!.email,
-            'role': 'user',
+            'role': 'staff', // Defaulting to staff for this MVP workflow
           });
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Account created! Logging in...')),
             );
-            _checkRoleAndNavigate(response.user!.id);
+            _navigateToDashboard();
           }
         }
       }
     } catch (e) {
       if (mounted) {
-        // Show the error cleanly
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('AuthException:', '').trim()),
@@ -75,40 +73,18 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _checkRoleAndNavigate(String userId) async {
-    final supabase = Supabase.instance.client;
-    try {
-      final data = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', userId)
-          .single();
-
-      final role = data['role'] as String;
-      if (!mounted) return;
-
-      if (role == 'staff') {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const CustomerAlbumsScreen()),
-        );
-      } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const RootScreen()),
-        );
-      }
-    } catch (e) {
-      // Fallback if profile fetch fails
-      if (!mounted) return;
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const RootScreen()));
-    }
+  // UPDATED: Simple navigation. Everyone goes to RootScreen.
+  void _navigateToDashboard() {
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const RootScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100], // 1. Better background
+      backgroundColor: Colors.grey[100],
       body: Center(
         child: SingleChildScrollView(
           child: Card(
@@ -118,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             margin: const EdgeInsets.all(24),
             child: Container(
-              width: 380, // 2. Fixed width to prevent "smushing"
+              width: 380,
               padding: const EdgeInsets.all(32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -130,17 +106,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    "AI Styler",
+                    "AI Styler Admin",
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Login to start styling",
+                    "Staff Login",
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 32),
 
-                  // Inputs
                   TextField(
                     controller: _emailController,
                     decoration: InputDecoration(
@@ -165,7 +140,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Buttons
                   if (_isLoading)
                     const CircularProgressIndicator()
                   else
@@ -190,9 +164,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
+                        // Kept Sign Up for MVP testing ease
                         TextButton(
                           onPressed: () => _handleAuth(isLogin: false),
-                          child: const Text('Create New Account'),
+                          child: const Text('Create Staff Account'),
                         ),
                       ],
                     ),

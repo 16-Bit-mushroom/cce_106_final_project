@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cce_106_final_project/views/style_selection/style_selection_scree.dart';
-import 'dart:typed_data'; // <--- ADDED THIS IMPORT
+import 'dart:typed_data';
 
 class CustomerRequestGridScreen extends StatefulWidget {
   final Map<String, dynamic> request; // We now accept the full request map
@@ -18,7 +18,6 @@ class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
   bool _isDownloading = false;
 
   // --- Image Fetch Logic ---
-  // When Staff clicks "Process AI", we need the image bytes first.
   Future<Uint8List?> _fetchImageBytes() async {
     setState(() => _isDownloading = true);
     try {
@@ -49,13 +48,11 @@ class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
     final imageBytes = await _fetchImageBytes();
 
     if (imageBytes != null && mounted) {
-      // Navigate to the AI Style Generation Screen, passing the bytes
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => StyleSelectionScreen(
             imageBytes: imageBytes,
-            // Pass the request ID so we can update the DB after generation
             requestData: widget.request,
           ),
         ),
@@ -65,7 +62,6 @@ class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
 
   // --- Selection Logic ---
   final Set<int> _selectedIndices = {};
-  final int _totalItems = 1;
 
   void _cancelSelection() {
     setState(() {
@@ -75,10 +71,14 @@ class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Extract Data
     final styleRequest = widget.request['style_type'] ?? 'Style Not Specified';
     final requestStatus = widget.request['status'] ?? 'pending';
     final originalImagePath = widget.request['original_image_path'];
-    // Handle cases where ID might be null or not a string safely
+    // NEW: Extract the notes
+    final requestNotes =
+        widget.request['notes'] ?? 'No journal entry provided.';
+
     final requestId = widget.request['id']?.toString() ?? 'Unknown ID';
     final shortId = requestId.length > 8
         ? requestId.substring(0, 8)
@@ -89,7 +89,6 @@ class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
       appBar: AppBar(
         title: Text(shortId),
         actions: [
-          // If the request hasn't been processed, show the AI button
           if (requestStatus == 'pending')
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
@@ -107,7 +106,7 @@ class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
       ),
       body: CustomScrollView(
         slivers: [
-          // 1. THE DETAILS CARD (Header)
+          // 2. THE DETAILS CARD (Header)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -133,14 +132,42 @@ class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
                     _buildDetailRow("Style Requested:", styleRequest),
                     const SizedBox(height: 8),
                     _buildDetailRow("Status:", requestStatus.toUpperCase()),
-                    const SizedBox(height: 8),
+
+                    // --- NEW SECTION: Journal Entry ---
+                    const SizedBox(height: 16),
+                    const Text(
+                      "Journal Entry:",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Text(
+                        requestNotes,
+                        style: const TextStyle(
+                          fontStyle: FontStyle.italic,
+                          color: Colors.black87,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                    // ----------------------------------
                   ],
                 ),
               ),
             ),
           ),
 
-          // 2. THE PHOTO DISPLAY (Original Image)
+          // 3. THE PHOTO DISPLAY (Original Image)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -153,7 +180,7 @@ class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
                   ),
                   const SizedBox(height: 8),
                   AspectRatio(
-                    aspectRatio: 1.5, // Standard photo aspect
+                    aspectRatio: 1.5,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: originalImagePath != null

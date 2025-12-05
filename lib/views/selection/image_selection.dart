@@ -12,18 +12,117 @@ class ImageSelectionScreen extends StatefulWidget {
 
 class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   bool _isUploading = false;
+  final TextEditingController _journalController = TextEditingController();
 
-  Future<void> _pickAndUpload(ImageSource source) async {
-    // 1. Pick the image
+  final List<String> _styles = [
+    "Anime",
+    "Cyberpunk",
+    "Cartoon",
+    "Sketch",
+    "3D Model",
+  ];
+  String _selectedStyle = "Anime";
+
+  Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(
       source: source,
-      maxWidth: 1920, // Limit size for easier AI processing
+      maxWidth: 1920,
       imageQuality: 80,
     );
 
-    if (image == null) return; // User cancelled
+    if (image == null) return;
 
+    if (mounted) {
+      _showDetailsDialog(image);
+    }
+  }
+
+  void _showDetailsDialog(XFile image) {
+    _journalController.clear();
+    setState(() => _selectedStyle = _styles.first);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text("New Request"),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Choose a Style:",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedStyle,
+                          isExpanded: true,
+                          items: _styles.map((String style) {
+                            return DropdownMenuItem<String>(
+                              value: style,
+                              child: Text(style),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setStateDialog(() {
+                              _selectedStyle = newValue!;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "Journal Entry:",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _journalController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        hintText: "e.g., 'Summer trip to Bohol, 2025'",
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.all(12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _uploadRequest(image, _journalController.text.trim());
+                  },
+                  child: const Text("Create"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _uploadRequest(XFile image, String journalText) async {
     setState(() => _isUploading = true);
 
     try {
@@ -34,7 +133,6 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
       final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
       final filePath = 'raw/$userId/$fileName';
 
-      // 2. Upload to Supabase Storage ('photos' bucket)
       await supabase.storage
           .from('photos')
           .uploadBinary(
@@ -43,19 +141,19 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
             fileOptions: const FileOptions(contentType: 'image/jpeg'),
           );
 
-      // 3. Create a Database Record ('requests' table)
       await supabase.from('requests').insert({
         'user_id': userId,
         'original_image_path': filePath,
-        'style_type': 'New Request', // Default title
+        'style_type': _selectedStyle,
         'status': 'pending',
+        'notes': journalText,
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Photo uploaded successfully!')),
+          const SnackBar(content: Text('Request created successfully!')),
         );
-        Navigator.pop(context); // Go back to Dashboard
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -72,23 +170,18 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   }
 
   @override
+  void dispose() {
+    _journalController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text("New Request"),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        titleTextStyle: const TextStyle(
-          color: Colors.black,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      appBar: AppBar(title: const Text("Create Request"), elevation: 0),
       body: Stack(
         children: [
-          // FIX: SingleChildScrollView prevents "Bottom Overflow" errors
           SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
             child: Column(
@@ -96,62 +189,38 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
               children: [
                 const SizedBox(height: 20),
                 const Icon(
-                  Icons.cloud_upload_outlined,
+                  Icons.folder_open_outlined,
                   size: 80,
                   color: Colors.deepPurple,
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  "Upload a photo to style",
+                  "Import Photo",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Choose a clear photo for the best results.",
+                  "Select a photo from your files to start a new styling request.",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 48),
 
-                // Option 1: Camera
+                // Only one option now
                 SelectionOptionCard(
-                  icon: Icons.camera_alt_outlined,
-                  title: "Take Photo",
-                  onTap: () => _pickAndUpload(ImageSource.camera),
+                  icon: Icons.upload_file,
+                  title: "Choose from Files",
+                  onTap: () => _pickImage(ImageSource.gallery),
                 ),
-                const SizedBox(height: 20),
-
-                // Option 2: Gallery
-                SelectionOptionCard(
-                  icon: Icons.photo_library_outlined,
-                  title: "Choose from Gallery",
-                  onTap: () => _pickAndUpload(ImageSource.gallery),
-                ),
-                const SizedBox(height: 40),
               ],
             ),
           ),
-
-          // Loading Overlay
           if (_isUploading)
             Container(
               color: Colors.black.withOpacity(0.5),
               child: const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Colors.white),
-                    SizedBox(height: 16),
-                    Text(
-                      "Uploading...",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+                child: CircularProgressIndicator(color: Colors.white),
               ),
             ),
         ],
