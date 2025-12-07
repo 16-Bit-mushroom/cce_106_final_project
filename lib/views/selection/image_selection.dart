@@ -1,7 +1,7 @@
+import 'dart:ui'; // For ImageFilter
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:cce_106_final_project/views/components/selection_option_card.dart';
 
 class ImageSelectionScreen extends StatefulWidget {
   const ImageSelectionScreen({super.key});
@@ -23,6 +23,11 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   ];
   String _selectedStyle = "Anime";
 
+  // --- SEVENTEEN Palette ---
+  final Color color1 = const Color(0xFFf7cac9); // Rose Quartz
+  final Color color5 = const Color(0xFF92a8d1); // Serenity
+
+  // --- LOGIC: PICK IMAGE ---
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(
@@ -38,6 +43,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
     }
   }
 
+  // --- LOGIC: SHOW DIALOG (Styled) ---
   void _showDetailsDialog(XFile image) {
     _journalController.clear();
     setState(() => _selectedStyle = _styles.first);
@@ -48,28 +54,78 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: const Text("New Request"),
-              content: SingleChildScrollView(
+            // Custom Styled Dialog
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.all(20),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color5.withOpacity(0.2),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: color1.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.auto_awesome, color: color5),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          "New Request",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Style Selector
                     const Text(
-                      "Choose a Style:",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      "Choose Artistic Style",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black54,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedStyle,
                           isExpanded: true,
+                          icon: Icon(Icons.keyboard_arrow_down_rounded,
+                              color: color5),
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
                           items: _styles.map((String style) {
                             return DropdownMenuItem<String>(
                               value: style,
@@ -85,36 +141,95 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    // Journal Entry
                     const Text(
-                      "Journal Entry:",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      "Journal Entry",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black54,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _journalController,
                       maxLines: 3,
-                      decoration: const InputDecoration(
+                      style: const TextStyle(fontSize: 14),
+                      decoration: InputDecoration(
                         hintText: "e.g., 'Summer trip to Bohol, 2025'",
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.all(12),
+                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.all(16),
                       ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Actions
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.grey[600],
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: const Text("Cancel"),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [color5, color1],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: color5.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _uploadRequest(
+                                    image, _journalController.text.trim());
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                "Create",
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancel"),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _uploadRequest(image, _journalController.text.trim());
-                  },
-                  child: const Text("Create"),
-                ),
-              ],
             );
           },
         );
@@ -122,6 +237,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
     );
   }
 
+  // --- LOGIC: UPLOAD REQUEST ---
   Future<void> _uploadRequest(XFile image, String journalText) async {
     setState(() => _isUploading = true);
 
@@ -151,7 +267,14 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Request created successfully!')),
+          SnackBar(
+            content: const Text('Request created successfully!'),
+            backgroundColor: Colors.teal,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         );
         Navigator.pop(context);
       }
@@ -177,50 +300,193 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // SEVENTEEN Color Palette
+    const color1 = Color(0xFFf7cac9); // Rose Quartz
+    const color2 = Color(0xFFdec2cb);
+    const color3 = Color(0xFFc5b9cd);
+    const color4 = Color(0xFFabb1cf);
+    const color5 = Color(0xFF92a8d1); // Serenity
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text("Create Request"), elevation: 0),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: const Text(
+          "Import Photo",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            shadows: [Shadow(color: Colors.black12, blurRadius: 4)],
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 20),
-                const Icon(
-                  Icons.folder_open_outlined,
-                  size: 80,
-                  color: Colors.deepPurple,
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  "Import Photo",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Select a photo from your files to start a new styling request.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 48),
-
-                // Only one option now
-                SelectionOptionCard(
-                  icon: Icons.upload_file,
-                  title: "Choose from Files",
-                  onTap: () => _pickImage(ImageSource.gallery),
-                ),
-              ],
+          // 1. Background Gradient
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color1, color2, color3, color4, color5],
+              ),
             ),
           ),
+
+          // 2. Main Content
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Glass Card
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(30),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(30),
+                          border:
+                              Border.all(color: Colors.white.withOpacity(0.4)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: color5.withOpacity(0.15),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            // Icon
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.add_photo_alternate_rounded,
+                                size: 64,
+                                color: color5,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            const Text(
+                              "Start a New Creation",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                      color: Colors.black12,
+                                      offset: Offset(0, 1),
+                                      blurRadius: 2)
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              "Select a photo from your gallery to begin the styling process.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                                height: 1.5,
+                              ),
+                            ),
+                            const SizedBox(height: 40),
+
+                            // Styled Upload Button
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => _pickImage(ImageSource.gallery),
+                                borderRadius: BorderRadius.circular(20),
+                                splashColor: Colors.white.withOpacity(0.3),
+                                child: Ink(
+                                  width: double.infinity,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 20),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [color5, color4],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: color5.withOpacity(0.4),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: const [
+                                      Icon(Icons.folder_open_rounded,
+                                          color: Colors.white),
+                                      SizedBox(width: 12),
+                                      Text(
+                                        "Choose from Gallery",
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // 3. Uploading Overlay
           if (_isUploading)
             Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+              color: Colors.black.withOpacity(0.6),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(color: Colors.white),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "Uploading...",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
