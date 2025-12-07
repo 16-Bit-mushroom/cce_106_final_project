@@ -1,3 +1,4 @@
+import 'dart:ui'; // For ImageFilter
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -23,6 +24,14 @@ class StyleResultScreen extends StatefulWidget {
 class _StyleResultScreenState extends State<StyleResultScreen> {
   bool _isSaving = false;
 
+  // --- SEVENTEEN Palette ---
+  final Color color1 = const Color(0xFFf7cac9); // Rose Quartz
+  final Color color2 = const Color(0xFFdec2cb);
+  final Color color3 = const Color(0xFFc5b9cd);
+  final Color color4 = const Color(0xFFabb1cf);
+  final Color color5 = const Color(0xFF92a8d1); // Serenity
+
+  // --- LOGIC: SAVE ---
   Future<void> _saveAndComplete() async {
     if (widget.requestData == null || widget.styledImageBytes == null) return;
 
@@ -75,146 +84,275 @@ class _StyleResultScreenState extends State<StyleResultScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Extract journal notes safely
     final journalText =
         widget.requestData?['notes'] ?? "No journal entry provided.";
     final dateStr = DateTime.now().toString().split(' ')[0]; // YYYY-MM-DD
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text("Album Preview"),
+        title: const Text(
+          "Album Preview",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            shadows: [Shadow(color: Colors.black12, blurRadius: 4)],
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        leading: IconButton(
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      // 1. Main Background color (Light Grey for the "table" surface)
-      backgroundColor: Colors.grey[200],
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Center(
-                // 2. The "Paper" Card
-                child: Container(
-                  constraints: const BoxConstraints(
-                    maxWidth: 400,
-                  ), // Max width for desktop
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8E1), // Cream/Paper color
-                    borderRadius: BorderRadius.circular(2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // 3. Double Border Container for the Image
-                      Container(
-                        padding: const EdgeInsets.all(
-                          4,
-                        ), // Gap between border and image
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: const Color(0xFF8D6E63),
-                            width: 1,
-                          ), // Brownish border
-                        ),
-                        child: widget.styledImageBytes != null
-                            ? Image.memory(
-                                widget.styledImageBytes!,
-                                fit: BoxFit.cover,
-                              )
-                            : Container(
-                                height: 300,
-                                color: Colors.grey[300],
-                                child: const Icon(Icons.broken_image),
-                              ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // 4. Journal Text Area
-                      Text(
-                        journalText,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Serif', // Uses system serif font
-                          color: Color(0xFF4E342E), // Dark Brown text
-                          height: 1.5,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // 5. Decorative Footer / Date
-                      Divider(
-                        color: const Color(0xFF8D6E63).withOpacity(0.5),
-                        indent: 40,
-                        endIndent: 40,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Created on $dateStr"
-                            .toUpperCase(), // <--- FIX APPLIED HERE
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: const Color(0xFF8D6E63).withOpacity(0.8),
-                          letterSpacing: 1.5,
-                          // uppercase: true, <--- REMOVED THIS LINE
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
+          // 1. Gradient Background
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color1, color2, color3, color4, color5],
               ),
             ),
           ),
 
-          // Bottom Actions
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.white,
-            child: Row(
+          // 2. Main Content
+          SafeArea(
+            child: Column(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: _isSaving ? null : () => Navigator.pop(context),
-                    child: const Text('Try Again'),
+                  // Center the list vertically
+                  child: Center(
+                    child: ListView(
+                      shrinkWrap: true, // Hugs content vertically
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+                      physics: const BouncingScrollPhysics(),
+                      children: [
+                        // GLASS CARD RESULT
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(30),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                            child: Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.4),
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(
+                                    color: Colors.white.withOpacity(0.5)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: color5.withOpacity(0.15),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                // UPDATED: Center content horizontally inside the card
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // Result Image Container
+                                  Container(
+                                    // UPDATED: Ensure it spans full width or centers
+                                    width: double.infinity, 
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.1),
+                                          blurRadius: 15,
+                                          offset: const Offset(0, 8),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: widget.styledImageBytes != null
+                                          ? Image.memory(
+                                              widget.styledImageBytes!,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Container(
+                                              height: 300,
+                                              color: Colors.white
+                                                  .withOpacity(0.5),
+                                              child: const Center(
+                                                child: Icon(Icons.broken_image,
+                                                    color: Colors.white),
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+
+                                  // Style Label - Centered Row
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: color5.withOpacity(0.2),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(Icons.brush_rounded,
+                                            size: 20, color: color5),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        widget.styleName,
+                                        style: const TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  // Journal Entry
+                                  const Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      "Journal Entry",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Text(
+                                      journalText,
+                                      style: const TextStyle(
+                                        fontStyle: FontStyle.italic,
+                                        color: Colors.black87,
+                                        height: 1.4,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 24),
+                                  Divider(
+                                      color: Colors.white.withOpacity(0.6),
+                                      thickness: 1),
+                                  const SizedBox(height: 8),
+
+                                  // Date Footer
+                                  Text(
+                                    "Created on $dateStr",
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black45,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: (!_isSaving && widget.styledImageBytes != null)
-                        ? _saveAndComplete
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF8D6E63), // Match theme
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    icon: _isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
+
+                // Bottom Buttons
+                Container(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  child: Row(
+                    children: [
+                      // Try Again Button
+                      Expanded(
+                        child: TextButton(
+                          onPressed: _isSaving
+                              ? null
+                              : () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: const Text(
+                            "Try Again",
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+
+                      // Save Button (White Pill)
+                      Expanded(
+                        flex: 2,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: (!_isSaving &&
+                                    widget.styledImageBytes != null)
+                                ? _saveAndComplete
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: color5, // Serenity text color
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
                             ),
-                          )
-                        : const Icon(Icons.print),
-                    label: const Text("Print & Complete"),
+                            child: _isSaving
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: color5,
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: const [
+                                      Icon(Icons.check_rounded),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "Save to Album",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

@@ -1,7 +1,7 @@
+import 'dart:ui'; // Required for ImageFilter (Glassmorphism)
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cce_106_final_project/views/root_screen.dart';
-// REMOVED: import customer_albums_screen.dart (It no longer exists)
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
+  // --- LOGIC SECTION (UNTOUCHED) ---
   Future<void> _handleAuth({required bool isLogin}) async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -73,108 +74,206 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // UPDATED: Simple navigation. Everyone goes to RootScreen.
   void _navigateToDashboard() {
     if (!mounted) return;
     Navigator.of(
       context,
     ).pushReplacement(MaterialPageRoute(builder: (_) => const RootScreen()));
   }
+  // --- END LOGIC SECTION ---
 
   @override
   Widget build(BuildContext context) {
+    // SEVENTEEN Color Palette from image
+    const color1 = Color(0xFFf7cac9); // Rose Quartz
+    const color2 = Color(0xFFdec2cb);
+    const color3 = Color(0xFFc5b9cd);
+    const color4 = Color(0xFFabb1cf);
+    const color5 = Color(0xFF92a8d1); // Serenity
+
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-      body: Center(
-        child: SingleChildScrollView(
-          child: Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            margin: const EdgeInsets.all(24),
-            child: Container(
-              width: 380,
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.auto_awesome,
-                    size: 48,
-                    color: Colors.deepPurple,
+      body: Container(
+        // 1. Gradient Background
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [color1, color2, color3, color4, color5],
+          ),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Header Text above the card
+                const Text(
+                  "Welcome Back",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black12,
+                        offset: Offset(0, 2),
+                        blurRadius: 4,
+                      )
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "AI Styler Admin",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Sign in to manage your albums",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Staff Login",
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 32),
+                ),
+                const SizedBox(height: 40),
 
-                  TextField(
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                // 2. Glassmorphism Card
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(30),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.3), // Milky glass
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.5),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color5.withOpacity(0.2),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  if (_isLoading)
-                    const CircularProgressIndicator()
-                  else
-                    Column(
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => _handleAuth(isLogin: true),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.deepPurple,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Icon
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.8),
+                              shape: BoxShape.circle,
                             ),
-                            child: const Text(
-                              'Log In',
-                              style: TextStyle(fontSize: 16),
+                            child: const Icon(
+                              Icons.auto_awesome,
+                              size: 36,
+                              color: color5, // Serenity Blue
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Kept Sign Up for MVP testing ease
-                        TextButton(
-                          onPressed: () => _handleAuth(isLogin: false),
-                          child: const Text('Create Staff Account'),
-                        ),
-                      ],
+                          const SizedBox(height: 30),
+
+                          // Email Input
+                          _buildGlassTextField(
+                            controller: _emailController,
+                            hint: 'Email Address',
+                            icon: Icons.email_outlined,
+                            iconColor: color5,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Password Input
+                          _buildGlassTextField(
+                            controller: _passwordController,
+                            hint: 'Password',
+                            icon: Icons.lock_outline,
+                            isPassword: true,
+                            iconColor: color5,
+                          ),
+                          const SizedBox(height: 32),
+
+                          // Login Button
+                          if (_isLoading)
+                            const CircularProgressIndicator(color: Colors.white)
+                          else
+                            Column(
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: () => _handleAuth(isLogin: true),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: color5, // Serenity Blue
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 18),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Log In',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                // Sign Up (Text Button)
+                                TextButton(
+                                  onPressed: () => _handleAuth(isLogin: false),
+                                  child: const Text(
+                                    'Create Staff Account',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
                     ),
-                ],
-              ),
+                  ),
+                ),
+              ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  // Helper widget for the friendly glass inputs
+  Widget _buildGlassTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    required Color iconColor,
+    bool isPassword = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        style: const TextStyle(color: Colors.black87),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey[600]),
+          prefixIcon: Icon(icon, color: iconColor),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
       ),
     );

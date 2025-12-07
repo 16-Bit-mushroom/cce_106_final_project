@@ -1,3 +1,4 @@
+import 'dart:ui'; // Required for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:cce_106_final_project/views/gallery/gallery_screen.dart';
 import 'package:cce_106_final_project/views/selection/image_selection.dart';
@@ -13,9 +14,13 @@ class RootScreen extends StatefulWidget {
 
 class _RootScreenState extends State<RootScreen> {
   int _currentIndex = 0;
-  String _userRole = 'user'; // Default role
+  String _userRole = 'user';
   bool _loadingRole = true;
   static const double kMaxWidth = 800.0;
+
+  // --- SEVENTEEN Palette ---
+  final Color color1 = const Color(0xFFf7cac9); // Rose Quartz
+  final Color color5 = const Color(0xFF92a8d1); // Serenity
 
   @override
   void initState() {
@@ -23,14 +28,15 @@ class _RootScreenState extends State<RootScreen> {
     _fetchUserRole();
   }
 
-  // --- Fetch the user's role from Supabase 'profiles' table ---
   Future<void> _fetchUserRole() async {
     try {
-      final userId = Supabase.instance.client.auth.currentUser!.id;
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
       final data = await Supabase.instance.client
           .from('profiles')
           .select('role')
-          .eq('id', userId)
+          .eq('id', user.id)
           .single();
 
       if (mounted) {
@@ -40,8 +46,6 @@ class _RootScreenState extends State<RootScreen> {
         });
       }
     } catch (e) {
-      print("Error fetching role: $e");
-      // Fallback to 'user' if fetch fails, but stop loading
       if (mounted) setState(() => _loadingRole = false);
     }
   }
@@ -61,110 +65,114 @@ class _RootScreenState extends State<RootScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Show loading spinner while checking admin status
     if (_loadingRole) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(
+            child: CircularProgressIndicator(color: Color(0xFF92a8d1))),
+      );
     }
 
-    // 2. Define our screens
     final List<Widget> screens = [
       const GalleryScreen(),
-      // Pass the fetched role to AdminScreen so it knows what to show
       AdminScreen(currentUserRole: _userRole),
     ];
 
     return Scaffold(
-      extendBody: true,
-      backgroundColor: Colors.grey[100],
-
-      // Main Body Content
+      extendBody: true, // Key for glassmorphism
+      backgroundColor: Colors.grey[50],
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: kMaxWidth),
-          child: Container(
-            height: MediaQuery.of(context).size.height,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 20,
-                ),
-              ],
-            ),
-            // IndexedStack keeps the state of screens alive when switching tabs
-            child: IndexedStack(index: _currentIndex, children: screens),
-          ),
+          child: IndexedStack(index: _currentIndex, children: screens),
         ),
       ),
-
-      // Bottom Navigation Bar
       bottomNavigationBar: Align(
         alignment: Alignment.bottomCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: kMaxWidth),
-          child: SafeArea(
-            child: Container(
-              height: 70,
-              margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(35),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 30,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  // Tab 1: Dashboard / Requests
-                  _NavBarIcon(
-                    icon: Icons.dashboard_outlined,
-                    label: "Requests",
-                    isSelected: _currentIndex == 0,
-                    onTap: () => _onTabTapped(0),
-                  ),
-
-                  // Center Button: Add New Request
-                  GestureDetector(
-                    onTap: _onAddPhotoTapped,
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8B553), // App Accent Color
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFF8B553).withOpacity(0.4),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 28,
-                      ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 30),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(35),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.8), // Milky Glass
+                    borderRadius: BorderRadius.circular(35),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.6),
+                      width: 1.5,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color5.withOpacity(0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // Tab 1: Requests
+                      _NavBarIcon(
+                        icon: Icons.dashboard_rounded,
+                        label: "Queue",
+                        isSelected: _currentIndex == 0,
+                        onTap: () => _onTabTapped(0),
+                        activeColor: color5,
+                      ),
 
-                  // Tab 2: Admin / Profile
-                  _NavBarIcon(
-                    // Change icon based on role for clear visual feedback
-                    icon: _userRole == 'admin'
-                        ? Icons.admin_panel_settings_outlined
-                        : Icons.person_outline,
-                    label: _userRole == 'admin' ? "Admin" : "Profile",
-                    isSelected: _currentIndex == 1,
-                    onTap: () => _onTabTapped(1),
+                      // Center: Gradient Add Button with Ripple (Ink)
+                      Material(
+                        color: Colors.transparent,
+                        child: Ink(
+                          width: 55,
+                          height: 55,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [color1, color5],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: color5.withOpacity(0.4),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: InkWell(
+                            onTap: _onAddPhotoTapped,
+                            customBorder: const CircleBorder(),
+                            splashColor: Colors.white.withOpacity(0.3),
+                            hoverColor: Colors.white.withOpacity(0.1),
+                            child: const Icon(
+                              Icons.add_rounded,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Tab 2: Admin/Profile
+                      _NavBarIcon(
+                        icon: _userRole == 'admin'
+                            ? Icons.admin_panel_settings_rounded
+                            : Icons.person_rounded,
+                        label: _userRole == 'admin' ? "Admin" : "Profile",
+                        isSelected: _currentIndex == 1,
+                        onTap: () => _onTabTapped(1),
+                        activeColor: color5,
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -174,43 +182,70 @@ class _RootScreenState extends State<RootScreen> {
   }
 }
 
-// Helper Widget for Nav Icons
+// Updated Helper Widget with Hover & Click States
 class _NavBarIcon extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final Color activeColor;
 
   const _NavBarIcon({
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
+    required this.activeColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 24,
-            color: isSelected ? Colors.black87 : Colors.grey.shade400,
+    // Using Material + InkWell for standard hover/click states
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20), // Pill shape hover
+        hoverColor: activeColor.withOpacity(0.1), // Serenity tint on hover
+        splashColor: activeColor.withOpacity(0.2), // Darker tint on click
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Animated Icon Scaling/Color
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: activeColor.withOpacity(0.3),
+                            blurRadius: 8,
+                          )
+                        ]
+                      : [],
+                ),
+                child: Icon(
+                  icon,
+                  size: 26,
+                  color: isSelected ? activeColor : Colors.grey.shade400,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? activeColor : Colors.grey.shade400,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              color: isSelected ? Colors.black87 : Colors.grey.shade400,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
