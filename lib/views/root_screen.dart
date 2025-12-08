@@ -4,6 +4,8 @@ import 'package:cce_106_final_project/views/gallery/gallery_screen.dart';
 import 'package:cce_106_final_project/views/selection/image_selection.dart';
 import 'package:cce_106_final_project/views/admin/admin_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+// ADD IMPORT HERE:
+import 'package:cce_106_final_project/views/gallery/styled_photos_screen.dart';
 
 class RootScreen extends StatefulWidget {
   const RootScreen({super.key});
@@ -72,9 +74,11 @@ class _RootScreenState extends State<RootScreen> {
       );
     }
 
+    // UPDATED SCREENS LIST
     final List<Widget> screens = [
-      const GalleryScreen(),
-      AdminScreen(currentUserRole: _userRole),
+      const GalleryScreen(),        // Index 0: Queue
+      const StyledPhotosScreen(),   // Index 1: New Photos Screen
+      AdminScreen(currentUserRole: _userRole), // Index 2: Profile/Admin
     ];
 
     return Scaffold(
@@ -116,7 +120,7 @@ class _RootScreenState extends State<RootScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // Tab 1: Requests
+                      // Tab 1: Requests Queue
                       _NavBarIcon(
                         icon: Icons.dashboard_rounded,
                         label: "Queue",
@@ -125,7 +129,16 @@ class _RootScreenState extends State<RootScreen> {
                         activeColor: color5,
                       ),
 
-                      // Center: Gradient Add Button with Ripple (Ink)
+                      // NEW Tab 2: Styled Photos
+                      _NavBarIcon(
+                        icon: Icons.photo_library_rounded,
+                        label: "Photos",
+                        isSelected: _currentIndex == 1,
+                        onTap: () => _onTabTapped(1),
+                        activeColor: color5,
+                      ),
+
+                      // Center: Gradient Add Button
                       Material(
                         color: Colors.transparent,
                         child: Ink(
@@ -160,14 +173,14 @@ class _RootScreenState extends State<RootScreen> {
                         ),
                       ),
 
-                      // Tab 2: Admin/Profile
+                      // Tab 3: Admin/Profile (Index updated to 2)
                       _NavBarIcon(
                         icon: _userRole == 'admin'
                             ? Icons.admin_panel_settings_rounded
                             : Icons.person_rounded,
                         label: _userRole == 'admin' ? "Admin" : "Profile",
-                        isSelected: _currentIndex == 1,
-                        onTap: () => _onTabTapped(1),
+                        isSelected: _currentIndex == 2,
+                        onTap: () => _onTabTapped(2),
                         activeColor: color5,
                       ),
                     ],
@@ -182,7 +195,7 @@ class _RootScreenState extends State<RootScreen> {
   }
 }
 
-// Updated Helper Widget with Hover & Click States
+// Helper Widget (Unchanged from previous version)
 class _NavBarIcon extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -200,21 +213,19 @@ class _NavBarIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Using Material + InkWell for standard hover/click states
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20), // Pill shape hover
-        hoverColor: activeColor.withOpacity(0.1), // Serenity tint on hover
-        splashColor: activeColor.withOpacity(0.2), // Darker tint on click
+        borderRadius: BorderRadius.circular(20),
+        hoverColor: activeColor.withOpacity(0.1),
+        splashColor: activeColor.withOpacity(0.2),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // Slightly reduced padding for space
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Animated Icon Scaling/Color
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
