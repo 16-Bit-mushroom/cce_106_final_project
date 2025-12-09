@@ -82,7 +82,10 @@ class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
     final requestStatus = widget.request['status'] ?? 'pending';
     final originalImagePath = widget.request['original_image_path'];
     final requestNotes = widget.request['notes'] ?? 'No journal entry provided.';
-    final createdAt = widget.request['created_at']; // New field
+    final createdAt = widget.request['created_at']; 
+    
+    // 1. EXTRACT SENDER NAME
+    final senderName = widget.request['sender_name'] ?? 'Anonymous';
 
     final requestId = widget.request['id']?.toString() ?? 'Unknown ID';
     final shortId = requestId.length > 8 ? requestId.substring(0, 8) : requestId;
@@ -199,6 +202,21 @@ class _CustomerRequestGridScreenState extends State<CustomerRequestGridScreen> {
                               _formatFullDate(createdAt),
                               style: const TextStyle(
                                   color: Colors.black54, fontSize: 13),
+                            ),
+                          ],
+                        ),
+
+                        // 2. NEW: SENDER NAME ROW
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(Icons.person_rounded,
+                                size: 16, color: Colors.black54),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Requested by $senderName",
+                              style: const TextStyle(
+                                  color: Colors.black54, fontSize: 13, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),

@@ -12,7 +12,10 @@ class ImageSelectionScreen extends StatefulWidget {
 
 class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   bool _isUploading = false;
+  
+  // Controllers for input
   final TextEditingController _journalController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController(); // NEW: Name Controller
 
   final List<String> _styles = [
     "Anime",
@@ -46,6 +49,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   // --- LOGIC: SHOW DIALOG (Styled) ---
   void _showDetailsDialog(XFile image) {
     _journalController.clear();
+    _nameController.clear(); // Clear previous name
     setState(() => _selectedStyle = _styles.first);
 
     showDialog(
@@ -71,163 +75,196 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
                     ),
                   ],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: color1.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.auto_awesome, color: color5),
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          "New Request",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Style Selector
-                    const Text(
-                      "Choose Artistic Style",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black54,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedStyle,
-                          isExpanded: true,
-                          icon: Icon(Icons.keyboard_arrow_down_rounded,
-                              color: color5),
-                          style: const TextStyle(
-                            color: Colors.black87,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          items: _styles.map((String style) {
-                            return DropdownMenuItem<String>(
-                              value: style,
-                              child: Text(style),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            setStateDialog(() {
-                              _selectedStyle = newValue!;
-                            });
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Journal Entry
-                    const Text(
-                      "Journal Entry",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black54,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _journalController,
-                      maxLines: 3,
-                      style: const TextStyle(fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText: "e.g., 'Summer trip to Bohol, 2025'",
-                        hintStyle: TextStyle(color: Colors.grey[400]),
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.all(16),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Actions
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.grey[600],
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text("Cancel"),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Container(
+                child: SingleChildScrollView( // Added scroll view for safety on small screens
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [color5, color1],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: color5.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
+                              color: color1.withOpacity(0.2),
+                              shape: BoxShape.circle,
                             ),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _uploadRequest(
-                                    image, _journalController.text.trim());
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                foregroundColor: Colors.white,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                            child: Icon(Icons.auto_awesome, color: color5),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            "New Request",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                  
+                      // 1. Style Selector
+                      const Text(
+                        "Choose Artistic Style",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black54,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedStyle,
+                            isExpanded: true,
+                            icon: Icon(Icons.keyboard_arrow_down_rounded,
+                                color: color5),
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            items: _styles.map((String style) {
+                              return DropdownMenuItem<String>(
+                                value: style,
+                                child: Text(style),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              setStateDialog(() {
+                                _selectedStyle = newValue!;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // 2. NEW: Full Name Input
+                      const Text(
+                        "Your Full Name",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black54,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _nameController,
+                        style: const TextStyle(fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: "e.g., Juan dela Cruz",
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          prefixIcon: Icon(Icons.person_outline, color: color5, size: 20),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                  
+                      // 3. Journal Entry
+                      const Text(
+                        "Journal Entry",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black54,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _journalController,
+                        maxLines: 3,
+                        style: const TextStyle(fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: "e.g., 'Summer trip to Bohol, 2025'",
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.all(16),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                  
+                      // Actions
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.grey[600],
+                                padding: const EdgeInsets.symmetric(vertical: 16),
                               ),
-                              child: const Text(
-                                "Create",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16),
+                              child: const Text("Cancel"),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [color5, color1],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: color5.withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _uploadRequest(
+                                      image, 
+                                      _journalController.text.trim(),
+                                      _nameController.text.trim() // Pass the name
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  foregroundColor: Colors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text(
+                                  "Create",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 16),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -238,7 +275,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   }
 
   // --- LOGIC: UPLOAD REQUEST ---
-  Future<void> _uploadRequest(XFile image, String journalText) async {
+  Future<void> _uploadRequest(XFile image, String journalText, String senderName) async {
     setState(() => _isUploading = true);
 
     try {
@@ -249,6 +286,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
       final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
       final filePath = 'raw/$userId/$fileName';
 
+      // 1. Upload File
       await supabase.storage
           .from('photos')
           .uploadBinary(
@@ -257,12 +295,14 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
             fileOptions: const FileOptions(contentType: 'image/jpeg'),
           );
 
+      // 2. Insert Record with Sender Name
       await supabase.from('requests').insert({
         'user_id': userId,
         'original_image_path': filePath,
         'style_type': _selectedStyle,
         'status': 'pending',
         'notes': journalText,
+        'sender_name': senderName.isEmpty ? 'Anonymous' : senderName, // Save Name
       });
 
       if (mounted) {
@@ -295,6 +335,7 @@ class _ImageSelectionScreenState extends State<ImageSelectionScreen> {
   @override
   void dispose() {
     _journalController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
