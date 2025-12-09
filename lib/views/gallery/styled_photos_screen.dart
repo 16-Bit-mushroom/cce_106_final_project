@@ -1,7 +1,6 @@
 import 'dart:ui'; // For ImageFilter
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-// Update this import if your folder structure changes
 import 'package:cce_106_final_project/views/gallery/styled_photo_detail_screen.dart';
 
 class StyledPhotosScreen extends StatefulWidget {
@@ -19,12 +18,12 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
   // Data State
   late Future<List<Map<String, dynamic>>> _photosFuture;
 
-  // --- SEVENTEEN Palette ---
-  final Color color1 = const Color(0xFFf7cac9);
+  // --- SEVENTEEN Palette (From Gallery Screen) ---
+  final Color color1 = const Color(0xFFf7cac9); // Rose Quartz
   final Color color2 = const Color(0xFFdec2cb);
   final Color color3 = const Color(0xFFc5b9cd);
   final Color color4 = const Color(0xFFabb1cf);
-  final Color color5 = const Color(0xFF92a8d1);
+  final Color color5 = const Color(0xFF92a8d1); // Serenity
 
   @override
   void initState() {
@@ -32,224 +31,496 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
     _photosFuture = _loadData();
   }
 
-  // --- 1. SUPABASE FETCH LOGIC (Kept the working version) ---
+  // --- DATA LOADING LOGIC (PRESERVED) ---
   Future<List<Map<String, dynamic>>> _loadData() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return [];
-
     try {
+      print("DEBUG: Fetching COMPLETED requests only...");
+
       final response = await Supabase.instance.client
           .from('requests')
-          .select()
-          .eq('user_id', userId)
-          .eq('status', 'completed') // Only finished images
-          .neq('styled_image_path', null)
+          .select('*')
+          .eq('status', 'completed') // PRESERVED: Only show completed
           .order('created_at', ascending: false);
+
+      print("DEBUG: Found ${response.length} completed photos.");
+
+      // DEBUG: URL Check
+      if (response.isNotEmpty) {
+        final firstItem = response.first;
+        final path = firstItem['styled_image_path'];
+        final testUrl = Supabase.instance.client.storage
+            .from('photos')
+            .getPublicUrl(path);
+        print("DEBUG: Testing First Image URL: $testUrl");
+      }
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      debugPrint('Error fetching photos: $e');
-      return [];
+      print("DEBUG ERROR: $e");
+      rethrow;
     }
   }
 
-  // --- 2. URL GENERATOR (Kept the working version) ---
-  String _getImageUrl(String? path) {
-    if (path == null || path.isEmpty) return '';
-    return Supabase.instance.client.storage
-        .from('style_transfer_assets')
-        .getPublicUrl(path);
-  }
-
-  // --- Selection Logic ---
-  void _toggleSelectionMode() {
-    setState(() {
-      _isSelectionMode = !_isSelectionMode;
-      _selectedIds.clear();
-    });
-  }
-
+  // --- SELECTION LOGIC (PRESERVED) ---
   void _toggleSelection(String id) {
     setState(() {
       if (_selectedIds.contains(id)) {
         _selectedIds.remove(id);
-        if (_selectedIds.isEmpty) _isSelectionMode = false;
       } else {
         _selectedIds.add(id);
       }
+      if (_selectedIds.isEmpty) _isSelectionMode = false;
     });
+  }
+
+  void _enterSelectionMode(String id) {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedIds.add(id);
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  // --- ACTIONS (PRESERVED) ---
+  Future<void> _deleteSelected() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Delete ${_selectedIds.length} Photos?"),
+        content: const Text("This action cannot be undone."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await Supabase.instance.client
+            .from('requests')
+            .delete()
+            .filter('id', 'in', _selectedIds.toList());
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Photos deleted successfully.")),
+          );
+        }
+        _exitSelectionMode();
+        setState(() {
+          _photosFuture = _loadData();
+        });
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Error deleting: $e"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _printSelected() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Printing ${_selectedIds.length} photos..."),
+        backgroundColor: color5,
+      ),
+    );
+    _exitSelectionMode();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          Colors.black87, // Maintained your original dark background
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text("My Gallery", style: TextStyle(color: Colors.white)),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _isSelectionMode ? Icons.close : Icons.select_all,
-              color: Colors.white,
-            ),
-            onPressed: _toggleSelectionMode,
+      // Keep AppBar for Selection Mode functional, but hide it normally to use custom header
+      extendBodyBehindAppBar: true,
+      appBar: _isSelectionMode
+          ? AppBar(
+              backgroundColor: color5.withOpacity(0.95),
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: _exitSelectionMode,
+              ),
+              title: Text(
+                "${_selectedIds.length} Selected",
+                style: const TextStyle(color: Colors.white),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.print, color: Colors.white),
+                  onPressed: _printSelected,
+                  tooltip: "Print",
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.white),
+                  onPressed: _deleteSelected,
+                  tooltip: "Delete",
+                ),
+              ],
+            )
+          : null, // No AppBar in normal mode, we use the Sliver Header
+
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [color1, color2, color3, color4, color5],
           ),
-        ],
-      ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _photosFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: Colors.white),
-            );
-          }
+        ),
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _photosFuture,
+          builder: (context, snapshot) {
+            // 1. Loading
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(
+                child: CircularProgressIndicator(
+                  color: Colors.white.withOpacity(0.8),
+                ),
+              );
+            }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'Error loading gallery',
-                style: TextStyle(color: color1),
-              ),
-            );
-          }
-
-          final data = snapshot.data ?? [];
-
-          if (data.isEmpty) {
-            return const Center(
-              child: Text(
-                "No styled photos yet.",
-                style: TextStyle(color: Colors.white54),
-              ),
-            );
-          }
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(10), // Original padding
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10, // Matching your original spacing
-              mainAxisSpacing: 10,
-              childAspectRatio: 0.75, // Matching your original aspect ratio
-            ),
-            itemCount: data.length,
-            itemBuilder: (context, index) {
-              final item = data[index];
-              final id = item['id'] as String;
-              final imagePath = item['styled_image_path'] as String?;
-              final imageUrl = _getImageUrl(imagePath);
-              final isSelected = _selectedIds.contains(id);
-
-              return GestureDetector(
-                onTap: () {
-                  if (_isSelectionMode) {
-                    _toggleSelection(id);
-                  } else {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => StyledPhotoDetailScreen(
-                          imageUrl: imageUrl,
-                          heroTag: id,
-                          metadata: item,
-                        ),
+            // 2. Error
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      "Error loading photos:\n${snapshot.error}",
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
-                    );
-                  }
-                },
-                onLongPress: () {
-                  if (!_isSelectionMode) {
-                    _toggleSelectionMode();
-                    _toggleSelection(id);
-                  }
-                },
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // --- Main Image Card ---
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(
-                        14,
-                      ), // Your specific radius
-                      child: Hero(
-                        tag: id,
-                        child: Image.network(
-                          imageUrl,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              color: Colors.white10,
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  value:
-                                      loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                            loadingProgress.expectedTotalBytes!
-                                      : null,
-                                  color: color3, // Using your palette
-                                ),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            final photos = snapshot.data ?? [];
+
+            // 3. Main Content
+            return RefreshIndicator(
+              onRefresh: () async {
+                setState(() {
+                  _photosFuture = _loadData();
+                });
+                await _photosFuture;
+              },
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  // A. Header (Copied style from GalleryScreen)
+                  SliverToBoxAdapter(
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 30, 24, 20),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.3),
+                                shape: BoxShape.circle,
                               ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey[900],
-                              child: const Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.broken_image,
-                                    color: Colors.white54,
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    "Error",
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.white54,
-                                    ),
+                              child: const Icon(
+                                Icons.photo_library_outlined,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            const Text(
+                              "Gallery",
+                              style: TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black12,
+                                    offset: Offset(0, 2),
+                                    blurRadius: 4,
                                   ),
                                 ],
                               ),
-                            );
-                          },
+                            ),
+                          ],
                         ),
                       ),
                     ),
+                  ),
 
-                    // --- Selection Overlay ---
-                    if (_isSelectionMode)
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          color: isSelected
-                              ? color5.withOpacity(0.4) // Your specific opacity
-                              : Colors.black.withOpacity(0.1),
-                          border: isSelected
-                              ? Border.all(color: Colors.white, width: 2)
-                              : null,
-                        ),
-                        alignment: Alignment.topRight,
-                        padding: const EdgeInsets.all(8),
-                        child: Icon(
-                          isSelected
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
-                          color: Colors.white,
-                          size: 22,
+                  // B. Empty State or Grid
+                  if (photos.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(40.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Container(
+                                padding: const EdgeInsets.all(30),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Text(
+                                  "No completed photos yet.",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                  ],
-                ),
-              );
-            },
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                      sliver: SliverGrid(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount:
+                                  2, // 2 columns looks better with this styling
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio:
+                                  0.85, // Slightly taller for style
+                            ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final photoData = photos[index];
+                          final path = photoData['styled_image_path'];
+                          if (path == null || path.toString().isEmpty) {
+                            return _buildStatusPlaceholder(photoData);
+                          }
+                          return _buildGlassPhotoTile(photoData);
+                        }, childCount: photos.length),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // --- Widget for Items WITHOUT Photos (Pending) ---
+  Widget _buildStatusPlaceholder(Map<String, dynamic> data) {
+    final status = data['status'] ?? 'Unknown';
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.6)),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.hourglass_empty_rounded,
+              color: Colors.white,
+              size: 30,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              status.toString().toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Widget for Items WITH Photos (Styled like GalleryScreen Rows) ---
+  Widget _buildGlassPhotoTile(Map<String, dynamic> data) {
+    final id = data['id'].toString();
+    final imagePath = data['styled_image_path'];
+    final isSelected = _selectedIds.contains(id);
+
+    final imageUrl = Supabase.instance.client.storage
+        .from('photos')
+        .getPublicUrl(imagePath);
+
+    return GestureDetector(
+      onTap: () {
+        if (_isSelectionMode) {
+          _toggleSelection(id);
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => StyledPhotoDetailScreen(data: data),
+            ),
           );
-        },
+        }
+      },
+      onLongPress: () => _enterSelectionMode(id),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.65), // Gallery Glass Style
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isSelected
+                ? color5
+                : Colors.white.withOpacity(0.8), // Selected vs Normal border
+            width: isSelected ? 4 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF92a8d1).withOpacity(0.15),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Image Area
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(
+                        22,
+                      ), // Matches outer border minus width
+                      bottom: Radius.circular(4),
+                    ),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            color: color5,
+                            strokeWidth: 2,
+                          ),
+                        );
+                      },
+                      errorBuilder: (ctx, err, stack) {
+                        print("IMAGE ERROR for ID $id: $err");
+                        return Container(
+                          color: Colors.grey.withOpacity(0.2),
+                          child: const Icon(
+                            Icons.broken_image,
+                            color: Colors.grey,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (_isSelectionMode)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isSelected
+                              ? color5
+                              : Colors.black.withOpacity(0.3),
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(Icons.check, color: Colors.white, size: 14),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // Footer Area (Like Gallery Text)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data['style_type'] ?? "Styled",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Color(0xFF4A4A4A),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          "DONE",
+                          style: TextStyle(
+                            color: Colors.teal,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
