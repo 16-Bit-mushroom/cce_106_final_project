@@ -1,11 +1,10 @@
-import 'dart:ui'; // Required for ImageFilter
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cce_106_final_project/views/login_screen.dart';
 
 class AdminScreen extends StatefulWidget {
   final String currentUserRole;
-
   const AdminScreen({super.key, required this.currentUserRole});
 
   @override
@@ -13,19 +12,66 @@ class AdminScreen extends StatefulWidget {
 }
 
 class _AdminScreenState extends State<AdminScreen> {
-  // --- SEVENTEEN Palette ---
-  final Color color1 = const Color(0xFFf7cac9); // Rose Quartz
+  final Color color1 = const Color(0xFFf7cac9);
   final Color color2 = const Color(0xFFdec2cb);
   final Color color3 = const Color(0xFFc5b9cd);
   final Color color4 = const Color(0xFFabb1cf);
-  final Color color5 = const Color(0xFF92a8d1); // Serenity
+  final Color color5 = const Color(0xFF92a8d1);
 
-  // --- ACTIONS (LOGIC UNTOUCHED) ---
+  // --- EDIT PASSWORD LOGIC ---
+  Future<void> _updatePasswordText(String userId, String currentPassword) async {
+    final passCtrl = TextEditingController(text: currentPassword);
+    
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Edit User Password"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Note: This updates the record for the presentation view.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: passCtrl,
+              decoration: const InputDecoration(labelText: "New Password", border: OutlineInputBorder()),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                // Update table
+                await Supabase.instance.client
+                    .from('profiles')
+                    .update({'password': passCtrl.text}) // Update plain text
+                    .eq('id', userId);
+                
+                // Try to update Auth if it's the CURRENT user
+                final myId = Supabase.instance.client.auth.currentUser?.id;
+                if(myId == userId) {
+                   await Supabase.instance.client.auth.updateUser(UserAttributes(password: passCtrl.text));
+                }
+
+                if (mounted) {
+                  setState(() {});
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Password record updated")));
+                }
+              } catch (e) {
+                print(e);
+              }
+            },
+            child: const Text("Save"),
+          )
+        ],
+      ),
+    );
+  }
 
   Future<void> _updateRole(String userId, String currentRole) async {
-    String? selectedRole = currentRole;
-
-    // Quick fix logic from original code
+     String? selectedRole = currentRole;
     if (selectedRole == 'user') selectedRole = 'staff';
 
     await showDialog(
@@ -64,7 +110,7 @@ class _AdminScreenState extends State<AdminScreen> {
                         .eq('id', userId);
 
                     if (mounted) {
-                      setState(() {}); // Refresh list
+                      setState(() {});
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text("Role updated successfully"),
@@ -73,14 +119,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       );
                     }
                   } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Update failed: $e"),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
+                     // Handle error
                   }
                 }
               },
@@ -93,7 +132,7 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Future<void> _deleteUser(String userId) async {
-    final confirm = await showDialog<bool>(
+      final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Delete User"),
@@ -123,18 +162,11 @@ class _AdminScreenState extends State<AdminScreen> {
             .eq('id', userId);
         if (mounted) setState(() {});
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Delete failed: $e"),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+         // handle error
       }
     }
   }
-
+  
   Future<void> _signOut() async {
     await Supabase.instance.client.auth.signOut();
     if (mounted) {
@@ -145,121 +177,17 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  // --- UI BUILD ---
-
   @override
   Widget build(BuildContext context) {
-    // 1. NON-ADMIN VIEW (Profile Only)
     if (widget.currentUserRole != 'admin') {
       return Scaffold(
         extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          title: const Text(
-            "My Profile",
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              shadows: [Shadow(color: Colors.black12, blurRadius: 4)],
-            ),
-          ),
-          centerTitle: true,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          automaticallyImplyLeading: false,
-        ),
+        appBar: AppBar(title: const Text("My Profile"), backgroundColor: Colors.transparent, elevation: 0, automaticallyImplyLeading: false,),
         body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [color1, color2, color3, color4, color5],
-            ),
-          ),
+          decoration: BoxDecoration(gradient: LinearGradient(colors: [color1, color2, color3, color4, color5])),
           child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(30),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                  child: Container(
-                    padding: const EdgeInsets.all(40),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: Colors.white.withOpacity(0.5)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: color5.withOpacity(0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.person_rounded,
-                              size: 64, color: color5),
-                        ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          "Welcome Back",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8B553).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFF8B553)),
-                          ),
-                          child: Text(
-                            widget.currentUserRole.toUpperCase(),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFD98E30),
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.logout_rounded),
-                            label: const Text("Log Out"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.redAccent,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            onPressed: _signOut,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+            child: ElevatedButton(onPressed: _signOut, child: const Text("Logout")),
+          ), 
         ),
       );
     }
@@ -283,13 +211,9 @@ class _AdminScreenState extends State<AdminScreen> {
           IconButton(
             icon: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
               child: const Icon(Icons.logout_rounded, color: Colors.white, size: 20),
             ),
-            tooltip: "Log Out",
             onPressed: _signOut,
           ),
           const SizedBox(width: 16),
@@ -310,110 +234,80 @@ class _AdminScreenState extends State<AdminScreen> {
               .order('role', ascending: true),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
-              return Center(
-                child: CircularProgressIndicator(color: Colors.white.withOpacity(0.8)),
-              );
+              return Center(child: CircularProgressIndicator(color: Colors.white.withOpacity(0.8)));
             }
-
             final users = snapshot.data!;
-
-            if (users.isEmpty) {
-              return const Center(child: Text("No users found.", style: TextStyle(color: Colors.white)));
-            }
-
+            
             return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(24, 100, 24, 100), // Padding for Appbar & Nav
+              padding: const EdgeInsets.fromLTRB(24, 100, 24, 100),
               physics: const BouncingScrollPhysics(),
               itemCount: users.length,
               itemBuilder: (context, index) {
                 final user = users[index];
                 final email = user['email'] ?? 'No Email';
                 final role = user['role'] ?? 'user';
+                final password = user['password'] ?? 'Unknown';
                 final userId = user['id'];
-                final isMe =
-                    Supabase.instance.client.auth.currentUser?.id == userId;
-
-                // Color coding for avatars
-                final Color roleColor = role == 'admin'
-                    ? const Color(0xFF92a8d1) // Serenity for Admin
-                    : const Color(0xFFF8B553); // Orange for Staff
+                
+                final Color roleColor = role == 'admin' ? const Color(0xFF92a8d1) : const Color(0xFFF8B553);
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.65),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.8),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color5.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
+                    border: Border.all(color: Colors.white.withOpacity(0.8)),
+                    boxShadow: [BoxShadow(color: color5.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5))],
                   ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: ExpansionTile(
+                    // FIX: REMOVE DEFAULT BORDERS
+                    shape: const Border(), 
+                    collapsedShape: const Border(),
+                    // --------------------------
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     leading: Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: roleColor.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        role == 'admin' ? Icons.security_rounded : Icons.badge_rounded,
-                        color: roleColor,
-                        size: 24,
-                      ),
+                      decoration: BoxDecoration(color: roleColor.withOpacity(0.2), shape: BoxShape.circle),
+                      child: Icon(role == 'admin' ? Icons.security_rounded : Icons.badge_rounded, color: roleColor, size: 24),
                     ),
-                    title: Text(
-                      email,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        role.toString().toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: roleColor,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
+                    title: Text(email, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 14)),
+                    subtitle: Text(role.toUpperCase(), style: TextStyle(fontSize: 12, color: roleColor, fontWeight: FontWeight.w600)),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Password (DB Record):", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                Text(password, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54)),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.key_rounded, color: Colors.orangeAccent),
+                                  tooltip: "Edit Password",
+                                  onPressed: () => _updatePasswordText(userId, password),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit_rounded, color: Color(0xFF92a8d1)),
+                                  tooltip: "Edit Role",
+                                  onPressed: () => _updateRole(userId, role),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.delete_outline_rounded, color: Colors.red[300]),
+                                  tooltip: "Delete User",
+                                  onPressed: () => _deleteUser(userId),
+                                ),
+                              ],
+                            )
+                          ],
                         ),
-                      ),
-                    ),
-                    trailing: isMe
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              "You",
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
-                            ),
-                          )
-                        : Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit_rounded, color: Color(0xFF92a8d1)),
-                                onPressed: () => _updateRole(userId, role),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.delete_outline_rounded, color: Colors.red[300]),
-                                onPressed: () => _deleteUser(userId),
-                              ),
-                            ],
-                          ),
+                      )
+                    ],
                   ),
                 );
               },

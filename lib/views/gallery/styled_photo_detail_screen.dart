@@ -1,6 +1,7 @@
 import 'dart:ui'; // For ImageFilter
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart'; // Make sure to add this dependency
 
 class StyledPhotoDetailScreen extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -80,6 +81,33 @@ class StyledPhotoDetailScreen extends StatelessWidget {
     }
   }
 
+  // --- NEW: Download Logic ---
+  Future<void> _downloadPhoto(BuildContext context) async {
+     final styledImagePath = data['styled_image_path'];
+     if (styledImagePath != null) {
+       final url = Supabase.instance.client.storage.from('photos').getPublicUrl(styledImagePath);
+       final uri = Uri.parse(url);
+       try {
+         if (await canLaunchUrl(uri)) {
+           await launchUrl(uri, mode: LaunchMode.externalApplication);
+           if (context.mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text("Opening image in browser...")),
+             );
+           }
+         } else {
+           if (context.mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text("Could not launch image URL.")),
+             );
+           }
+         }
+       } catch (e) {
+          debugPrint("Error launching URL: $e");
+       }
+     }
+  }
+
   @override
   Widget build(BuildContext context) {
     final styledImagePath = data['styled_image_path'];
@@ -88,16 +116,8 @@ class StyledPhotoDetailScreen extends StatelessWidget {
         .getPublicUrl(styledImagePath);
     final style = data['style_type'] ?? 'Unknown';
     final dateStr = _formatDate(data['created_at']);
-
-    // Extract Sender Name
-    String senderName = "Unknown Sender";
-    if (data['profiles'] != null && data['profiles']['email'] != null) {
-      senderName = data['profiles']['email'].split('@')[0];
-      // Capitalize first letter (e.g. "wruce" -> "Wruce")
-      if (senderName.isNotEmpty) {
-        senderName = senderName[0].toUpperCase() + senderName.substring(1);
-      }
-    }
+    final senderName = data['sender_name'] ?? 'Anonymous';
+    final notes = data['notes'] ?? '';
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -125,13 +145,13 @@ class StyledPhotoDetailScreen extends StatelessWidget {
             ),
           ),
 
-          // 2. Main Wireframe Layout
+          // 2. Main Content
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 children: [
-                  // --- THE MAIN CARD ---
+                  // --- GLASS CARD ---
                   Expanded(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(20),
@@ -141,9 +161,7 @@ class StyledPhotoDetailScreen extends StatelessWidget {
                           width: double.infinity,
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(
-                              0.85,
-                            ), // Higher opacity for paper-like feel from sketch
+                            color: Colors.white.withOpacity(0.85),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: Colors.white),
                             boxShadow: [
@@ -157,72 +175,148 @@ class StyledPhotoDetailScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // TOP ROW: Name + Date (Left) --- Style (Right)
+                              // HEADER ROW (Name & Style)
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        senderName,
-                                        style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          senderName,
+                                          style: const TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        dateStr,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                          fontWeight: FontWeight.w500,
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          dateStr,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                  // Style Label
-                                  Text(
-                                    style,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      fontStyle: FontStyle.italic,
-                                      color: Colors.black87,
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: color5.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: color5.withOpacity(0.3),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      style,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey[800],
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 20),
 
-                              // MIDDLE: Image Display
+                              // --- IMAGE DISPLAY (UPDATED) ---
                               Expanded(
                                 child: Container(
                                   width: double.infinity,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(color: Colors.black12),
-                                    color: Colors.grey[100],
+                                    color: Colors
+                                        .black, // Dark background looks better for photos
                                   ),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(16),
-                                    child: Image.network(
-                                      imageUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              const Center(
-                                                child: Icon(Icons.broken_image),
-                                              ),
+                                    child: InteractiveViewer(
+                                      minScale: 0.5,
+                                      maxScale: 4.0,
+                                      child: Image.network(
+                                        imageUrl,
+                                        fit: BoxFit
+                                            .contain,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                const Center(
+                                                  child: Icon(
+                                                    Icons.broken_image,
+                                                    color: Colors.white54,
+                                                  ),
+                                                ),
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
+
+                              // NOTES CAPTION
+                              if (notes.toString().isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.black.withOpacity(0.05),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.edit_note_rounded,
+                                            size: 16,
+                                            color: color5,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            "Journal Entry",
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        notes,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontStyle: FontStyle.italic,
+                                          color: Colors.black87,
+                                          height: 1.4,
+                                        ),
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -232,9 +326,17 @@ class StyledPhotoDetailScreen extends StatelessWidget {
 
                   const SizedBox(height: 16),
 
-                  // --- BOTTOM ICONS (Left Aligned as per Sketch) ---
+                  // --- ACTIONS ---
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center, // Center icons
                     children: [
+                      // --- NEW: Download Icon ---
+                      _buildActionIcon(
+                        icon: Icons.download_rounded,
+                        color: Colors.black87,
+                        onTap: () => _downloadPhoto(context),
+                      ),
+                      const SizedBox(width: 16),
                       // Print Icon
                       _buildActionIcon(
                         icon: Icons.print_rounded,
@@ -264,7 +366,6 @@ class StyledPhotoDetailScreen extends StatelessWidget {
     );
   }
 
-  // Helper for the square wireframe buttons
   Widget _buildActionIcon({
     required IconData icon,
     required Color color,

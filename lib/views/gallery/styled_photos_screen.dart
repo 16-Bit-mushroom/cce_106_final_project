@@ -2,6 +2,7 @@ import 'dart:ui'; // For ImageFilter
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cce_106_final_project/views/gallery/styled_photo_detail_screen.dart';
+import 'package:url_launcher/url_launcher.dart'; // Make sure to add this dependency
 
 class StyledPhotosScreen extends StatefulWidget {
   const StyledPhotosScreen({super.key});
@@ -31,7 +32,7 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
     _photosFuture = _loadData();
   }
 
-  // --- DATA LOADING LOGIC (PRESERVED) ---
+  // --- DATA LOADING LOGIC ---
   Future<List<Map<String, dynamic>>> _loadData() async {
     try {
       print("DEBUG: Fetching COMPLETED requests only...");
@@ -39,21 +40,10 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
       final response = await Supabase.instance.client
           .from('requests')
           .select('*')
-          .eq('status', 'completed') // PRESERVED: Only show completed
+          .eq('status', 'completed')
           .order('created_at', ascending: false);
 
       print("DEBUG: Found ${response.length} completed photos.");
-
-      // DEBUG: URL Check
-      if (response.isNotEmpty) {
-        final firstItem = response.first;
-        final path = firstItem['styled_image_path'];
-        final testUrl = Supabase.instance.client.storage
-            .from('photos')
-            .getPublicUrl(path);
-        print("DEBUG: Testing First Image URL: $testUrl");
-      }
-
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print("DEBUG ERROR: $e");
@@ -61,7 +51,7 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
     }
   }
 
-  // --- SELECTION LOGIC (PRESERVED) ---
+  // --- SELECTION LOGIC ---
   void _toggleSelection(String id) {
     setState(() {
       if (_selectedIds.contains(id)) {
@@ -87,7 +77,7 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
     });
   }
 
-  // --- ACTIONS (PRESERVED) ---
+  // --- ACTIONS ---
   Future<void> _deleteSelected() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -137,6 +127,48 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
     }
   }
 
+  // --- NEW: Download Logic ---
+  Future<void> _downloadSelected() async {
+    // Note: On Web, this will typically open the image in a new tab where user can save.
+    // On Mobile with url_launcher, it attempts to open the link.
+    
+    // We need to fetch the data first to get the paths
+    final allPhotos = await _photosFuture;
+    final selectedPhotos = allPhotos.where((p) => _selectedIds.contains(p['id'].toString())).toList();
+
+    if (selectedPhotos.isEmpty) return;
+
+    int successCount = 0;
+    for (var photo in selectedPhotos) {
+      final path = photo['styled_image_path'];
+      if (path != null) {
+        final url = Supabase.instance.client.storage.from('photos').getPublicUrl(path);
+        final uri = Uri.parse(url);
+        
+        try {
+          if (await canLaunchUrl(uri)) {
+             await launchUrl(uri, mode: LaunchMode.externalApplication);
+             successCount++;
+          } else {
+             print("Could not launch $url");
+          }
+        } catch (e) {
+           print("Error launching url: $e");
+        }
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Opened $successCount photos. Save them from your browser."),
+          backgroundColor: color5,
+        ),
+      );
+    }
+    _exitSelectionMode();
+  }
+
   void _printSelected() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -150,7 +182,6 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Keep AppBar for Selection Mode functional, but hide it normally to use custom header
       extendBodyBehindAppBar: true,
       appBar: _isSelectionMode
           ? AppBar(
@@ -165,6 +196,12 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
                 style: const TextStyle(color: Colors.white),
               ),
               actions: [
+                // --- NEW DOWNLOAD BUTTON ---
+                IconButton(
+                  icon: const Icon(Icons.download_rounded, color: Colors.white),
+                  onPressed: _downloadSelected,
+                  tooltip: "Download/Save",
+                ),
                 IconButton(
                   icon: const Icon(Icons.print, color: Colors.white),
                   onPressed: _printSelected,
@@ -177,7 +214,7 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
                 ),
               ],
             )
-          : null, // No AppBar in normal mode, we use the Sliver Header
+          : null,
 
       body: Container(
         decoration: BoxDecoration(
@@ -190,7 +227,6 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
         child: FutureBuilder<List<Map<String, dynamic>>>(
           future: _photosFuture,
           builder: (context, snapshot) {
-            // 1. Loading
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(
                 child: CircularProgressIndicator(
@@ -199,7 +235,6 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
               );
             }
 
-            // 2. Error
             if (snapshot.hasError) {
               return Center(
                 child: Padding(
@@ -225,7 +260,6 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
 
             final photos = snapshot.data ?? [];
 
-            // 3. Main Content
             return RefreshIndicator(
               onRefresh: () async {
                 setState(() {
@@ -236,7 +270,7 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
               child: CustomScrollView(
                 physics: const BouncingScrollPhysics(),
                 slivers: [
-                  // A. Header (Copied style from GalleryScreen)
+                  // A. Header
                   SliverToBoxAdapter(
                     child: SafeArea(
                       bottom: false,
@@ -316,12 +350,10 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
                       sliver: SliverGrid(
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount:
-                                  2, // 2 columns looks better with this styling
+                              crossAxisCount: 2,
                               crossAxisSpacing: 16,
                               mainAxisSpacing: 16,
-                              childAspectRatio:
-                                  0.85, // Slightly taller for style
+                              childAspectRatio: 0.8, // Slightly taller for more text space
                             ),
                         delegate: SliverChildBuilderDelegate((context, index) {
                           final photoData = photos[index];
@@ -376,10 +408,12 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
     );
   }
 
-  // --- Widget for Items WITH Photos (Styled like GalleryScreen Rows) ---
+  // --- Widget for Items WITH Photos ---
   Widget _buildGlassPhotoTile(Map<String, dynamic> data) {
     final id = data['id'].toString();
     final imagePath = data['styled_image_path'];
+    // 1. EXTRACT SENDER NAME
+    final senderName = data['sender_name'] ?? 'Anonymous';
     final isSelected = _selectedIds.contains(id);
 
     final imageUrl = Supabase.instance.client.storage
@@ -403,12 +437,10 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.65), // Gallery Glass Style
+          color: Colors.white.withOpacity(0.65),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isSelected
-                ? color5
-                : Colors.white.withOpacity(0.8), // Selected vs Normal border
+            color: isSelected ? color5 : Colors.white.withOpacity(0.8),
             width: isSelected ? 4 : 1,
           ),
           boxShadow: [
@@ -429,9 +461,7 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
                 children: [
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(
-                        22,
-                      ), // Matches outer border minus width
+                      top: Radius.circular(22),
                       bottom: Radius.circular(4),
                     ),
                     child: Image.network(
@@ -447,7 +477,6 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
                         );
                       },
                       errorBuilder: (ctx, err, stack) {
-                        print("IMAGE ERROR for ID $id: $err");
                         return Container(
                           color: Colors.grey.withOpacity(0.2),
                           child: const Icon(
@@ -471,13 +500,13 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
                           border: Border.all(color: Colors.white, width: 2),
                         ),
                         padding: const EdgeInsets.all(4),
-                        child: Icon(Icons.check, color: Colors.white, size: 14),
+                        child: const Icon(Icons.check, color: Colors.white, size: 14),
                       ),
                     ),
                 ],
               ),
             ),
-            // Footer Area (Like Gallery Text)
+            // Footer Area
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -493,7 +522,20 @@ class _StyledPhotosScreenState extends State<StyledPhotosScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  // 2. SHOW SENDER NAME
+                  Text(
+                    "By $senderName",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  
+                  // Status Badge
                   Row(
                     children: [
                       Container(

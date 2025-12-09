@@ -4,8 +4,9 @@ import 'package:cce_106_final_project/views/gallery/gallery_screen.dart';
 import 'package:cce_106_final_project/views/selection/image_selection.dart';
 import 'package:cce_106_final_project/views/admin/admin_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-// ADD IMPORT HERE:
 import 'package:cce_106_final_project/views/gallery/styled_photos_screen.dart';
+// ADD IMPORT FOR SEARCH:
+import 'package:cce_106_final_project/views/gallery/search_screen.dart';
 
 class RootScreen extends StatefulWidget {
   const RootScreen({super.key});
@@ -74,15 +75,16 @@ class _RootScreenState extends State<RootScreen> {
       );
     }
 
-    // UPDATED SCREENS LIST
+    // UPDATED SCREENS LIST (4 Items now)
     final List<Widget> screens = [
-      const GalleryScreen(),        // Index 0: Queue
-      const StyledPhotosScreen(),   // Index 1: New Photos Screen
-      AdminScreen(currentUserRole: _userRole), // Index 2: Profile/Admin
+      const GalleryScreen(),         // Index 0: Queue
+      const StyledPhotosScreen(),    // Index 1: Photos
+      const SearchScreen(),          // Index 2: Search (NEW)
+      AdminScreen(currentUserRole: _userRole), // Index 3: Profile/Admin
     ];
 
     return Scaffold(
-      extendBody: true, // Key for glassmorphism
+      extendBody: true,
       backgroundColor: Colors.grey[50],
       body: Center(
         child: ConstrainedBox(
@@ -120,7 +122,7 @@ class _RootScreenState extends State<RootScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // Tab 1: Requests Queue
+                      // --- LEFT SIDE ---
                       _NavBarIcon(
                         icon: Icons.dashboard_rounded,
                         label: "Queue",
@@ -129,7 +131,6 @@ class _RootScreenState extends State<RootScreen> {
                         activeColor: color5,
                       ),
 
-                      // NEW Tab 2: Styled Photos
                       _NavBarIcon(
                         icon: Icons.photo_library_rounded,
                         label: "Photos",
@@ -138,12 +139,12 @@ class _RootScreenState extends State<RootScreen> {
                         activeColor: color5,
                       ),
 
-                      // Center: Gradient Add Button
+                      // --- CENTER: ADD BUTTON ---
                       Material(
                         color: Colors.transparent,
                         child: Ink(
-                          width: 55,
-                          height: 55,
+                          width: 50, // Slightly smaller to fit 5 items
+                          height: 50,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
@@ -167,20 +168,30 @@ class _RootScreenState extends State<RootScreen> {
                             child: const Icon(
                               Icons.add_rounded,
                               color: Colors.white,
-                              size: 32,
+                              size: 28,
                             ),
                           ),
                         ),
                       ),
 
-                      // Tab 3: Admin/Profile (Index updated to 2)
+                      // --- RIGHT SIDE ---
+                      // NEW SEARCH TAB (Index 2)
+                      _NavBarIcon(
+                        icon: Icons.search_rounded,
+                        label: "Search",
+                        isSelected: _currentIndex == 2,
+                        onTap: () => _onTabTapped(2),
+                        activeColor: color5,
+                      ),
+
+                      // PROFILE TAB (Index 3)
                       _NavBarIcon(
                         icon: _userRole == 'admin'
                             ? Icons.admin_panel_settings_rounded
                             : Icons.person_rounded,
                         label: _userRole == 'admin' ? "Admin" : "Profile",
-                        isSelected: _currentIndex == 2,
-                        onTap: () => _onTabTapped(2),
+                        isSelected: _currentIndex == 3,
+                        onTap: () => _onTabTapped(3),
                         activeColor: color5,
                       ),
                     ],
@@ -195,7 +206,7 @@ class _RootScreenState extends State<RootScreen> {
   }
 }
 
-// Helper Widget (Unchanged from previous version)
+// Helper Widget
 class _NavBarIcon extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -221,7 +232,8 @@ class _NavBarIcon extends StatelessWidget {
         hoverColor: activeColor.withOpacity(0.1),
         splashColor: activeColor.withOpacity(0.2),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // Slightly reduced padding for space
+          // Reduced padding to fit 5 items comfortably
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), 
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -241,7 +253,7 @@ class _NavBarIcon extends StatelessWidget {
                 ),
                 child: Icon(
                   icon,
-                  size: 26,
+                  size: 24, // Slightly smaller icon
                   color: isSelected ? activeColor : Colors.grey.shade400,
                 ),
               ),
@@ -249,7 +261,7 @@ class _NavBarIcon extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10, // Slightly smaller text
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   color: isSelected ? activeColor : Colors.grey.shade400,
                 ),

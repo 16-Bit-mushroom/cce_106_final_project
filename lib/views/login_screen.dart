@@ -1,7 +1,9 @@
-import 'dart:ui'; // Required for ImageFilter (Glassmorphism)
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cce_106_final_project/views/root_screen.dart';
+import 'package:cce_106_final_project/views/signup_screen.dart'; // Import
+import 'package:google_fonts/google_fonts.dart'; // Import Fonts
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,8 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  // --- LOGIC SECTION (UNTOUCHED) ---
-  Future<void> _handleAuth({required bool isLogin}) async {
+  Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter both email and password')),
@@ -28,43 +29,18 @@ class _LoginScreenState extends State<LoginScreen> {
     final supabase = Supabase.instance.client;
 
     try {
-      if (isLogin) {
-        // Log In
-        final response = await supabase.auth.signInWithPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-        if (response.user != null) {
-          _navigateToDashboard();
-        }
-      } else {
-        // Sign Up
-        final response = await supabase.auth.signUp(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-
-        if (response.user != null) {
-          // Create profile
-          await supabase.from('profiles').insert({
-            'id': response.user!.id,
-            'email': response.user!.email,
-            'role': 'staff', // Defaulting to staff for this MVP workflow
-          });
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Account created! Logging in...')),
-            );
-            _navigateToDashboard();
-          }
-        }
+      final response = await supabase.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      if (response.user != null) {
+        _navigateToDashboard();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceAll('AuthException:', '').trim()),
+            content: Text("Login Failed: ${e.toString()}"),
             backgroundColor: Colors.red,
           ),
         );
@@ -76,24 +52,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _navigateToDashboard() {
     if (!mounted) return;
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const RootScreen()));
+    Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const RootScreen()));
   }
-  // --- END LOGIC SECTION ---
 
   @override
   Widget build(BuildContext context) {
-    // SEVENTEEN Color Palette from image
-    const color1 = Color(0xFFf7cac9); // Rose Quartz
+    const color1 = Color(0xFFf7cac9);
     const color2 = Color(0xFFdec2cb);
     const color3 = Color(0xFFc5b9cd);
     const color4 = Color(0xFFabb1cf);
-    const color5 = Color(0xFF92a8d1); // Serenity
+    const color5 = Color(0xFF92a8d1);
 
     return Scaffold(
       body: Container(
-        // 1. Gradient Background
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -107,34 +79,29 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Header Text above the card
-                const Text(
-                  "Welcome Back",
-                  style: TextStyle(
+                // LOGO BRANDING
+                Text(
+                  "ComFie",
+                  style: GoogleFonts.fredoka(
                     color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
+                    fontSize: 64,
+                    fontWeight: FontWeight.w600,
                     shadows: [
-                      Shadow(
-                        color: Colors.black12,
-                        offset: Offset(0, 2),
-                        blurRadius: 4,
-                      )
+                      const Shadow(
+                          color: Colors.black12,
+                          offset: Offset(0, 4),
+                          blurRadius: 8)
                     ],
                   ),
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  "Sign in to manage your albums",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                  ),
+                  "Your Personal Style Gallery",
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                 const SizedBox(height: 40),
 
-                // 2. Glassmorphism Card
+                // GLASS CARD
                 ClipRRect(
                   borderRadius: BorderRadius.circular(30),
                   child: BackdropFilter(
@@ -143,97 +110,88 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(32),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3), // Milky glass
+                        color: Colors.white.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.5),
-                          width: 1.5,
-                        ),
+                            color: Colors.white.withOpacity(0.5), width: 1.5),
                         boxShadow: [
                           BoxShadow(
-                            color: color5.withOpacity(0.2),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
+                              color: color5.withOpacity(0.2),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10)),
                         ],
                       ),
                       child: Column(
-                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Icon
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.8),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.auto_awesome,
-                              size: 36,
-                              color: color5, // Serenity Blue
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.8),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.lock_person_rounded,
+                                  size: 36, color: color5),
                             ),
                           ),
                           const SizedBox(height: 30),
 
-                          // Email Input
-                          _buildGlassTextField(
-                            controller: _emailController,
-                            hint: 'Email Address',
-                            icon: Icons.email_outlined,
-                            iconColor: color5,
-                          ),
+                          // INPUTS WITH LABELS (Anatomy Style)
+                          _buildLabel("Email Address"),
+                          _buildGlassTextField(_emailController,
+                              "john.doe@example.com", Icons.email_outlined),
                           const SizedBox(height: 16),
 
-                          // Password Input
-                          _buildGlassTextField(
-                            controller: _passwordController,
-                            hint: 'Password',
-                            icon: Icons.lock_outline,
-                            isPassword: true,
-                            iconColor: color5,
+                          _buildLabel("Password"),
+                          _buildGlassTextField(_passwordController, "**********",
+                              Icons.lock_outline,
+                              isPassword: true),
+                          
+                          // Forgot Password Flow (Visual Only)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {}, // TODO: Implement reset logic if needed
+                              child: const Text("Forgot Password?", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                            ),
                           ),
-                          const SizedBox(height: 32),
+                          
+                          const SizedBox(height: 10),
 
-                          // Login Button
                           if (_isLoading)
-                            const CircularProgressIndicator(color: Colors.white)
+                            const Center(child: CircularProgressIndicator(color: Colors.white))
                           else
                             Column(
                               children: [
                                 SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton(
-                                    onPressed: () => _handleAuth(isLogin: true),
+                                    onPressed: _handleLogin,
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: color5, // Serenity Blue
+                                      backgroundColor: color5,
                                       foregroundColor: Colors.white,
                                       elevation: 0,
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 18),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
+                                      padding: const EdgeInsets.symmetric(vertical: 18),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                     ),
-                                    child: const Text(
-                                      'Log In',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                                    child: const Text('Log In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                   ),
                                 ),
-                                const SizedBox(height: 16),
-                                // Sign Up (Text Button)
-                                TextButton(
-                                  onPressed: () => _handleAuth(isLogin: false),
-                                  child: const Text(
-                                    'Create Staff Account',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
+                                const SizedBox(height: 20),
+                                const Divider(color: Colors.white30),
+                                const SizedBox(height: 10),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Text("Don't have an account?", style: TextStyle(color: Colors.white70)),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen()));
+                                      },
+                                      child: const Text("Sign Up", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                                     ),
-                                  ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -250,18 +208,27 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Helper widget for the friendly glass inputs
-  Widget _buildGlassTextField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    required Color iconColor,
-    bool isPassword = false,
-  }) {
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, bottom: 6),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.9),
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassTextField(
+      TextEditingController controller, String hint, IconData icon,
+      {bool isPassword = false}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: TextField(
         controller: controller,
@@ -269,8 +236,8 @@ class _LoginScreenState extends State<LoginScreen> {
         style: const TextStyle(color: Colors.black87),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[600]),
-          prefixIcon: Icon(icon, color: iconColor),
+          hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+          prefixIcon: Icon(icon, color: const Color(0xFF92a8d1)),
           border: InputBorder.none,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
