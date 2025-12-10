@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // MAKE SURE THIS PATH IS CORRECT. If you moved the file, update this line.
-import 'package:cce_106_final_project/views/albums/customer_request_grid_screen.dart'; 
+import 'package:cce_106_final_project/views/albums/customer_request_grid_screen.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
@@ -36,14 +36,21 @@ class _GalleryScreenState extends State<GalleryScreen> {
   @override
   Widget build(BuildContext context) {
     final List<String> statusOptions = ['All', 'Pending', 'Completed'];
-    final List<String> styleOptions = ['All', 'Anime', 'Sketch', 'Cartoon'];
+    final List<String> styleOptions = [
+      'All',
+      'Anime',
+      'Cyberpunk',
+      'Cartoon',
+      'Sketch',
+      '3D Model',
+    ];
 
     // SEVENTEEN Color Palette
-    const color1 = Color(0xFFf7cac9); 
+    const color1 = Color(0xFFf7cac9);
     const color2 = Color(0xFFdec2cb);
     const color3 = Color(0xFFc5b9cd);
     const color4 = Color(0xFFabb1cf);
-    const color5 = Color(0xFF92a8d1); 
+    const color5 = Color(0xFF92a8d1);
 
     return Scaffold(
       body: Container(
@@ -107,7 +114,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         value: _selectedStatus,
                         items: statusOptions,
                         onChanged: (val) {
-                          if (val != null) setState(() => _selectedStatus = val);
+                          if (val != null)
+                            setState(() => _selectedStatus = val);
                         },
                         icon: Icons.filter_list,
                       ),
@@ -252,11 +260,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   Widget _buildRequestRow(BuildContext context, Map<String, dynamic> item) {
     final status = item['status'] ?? 'pending';
-    
+
     // --- FIX: NULL SAFETY FOR IMAGE PATH ---
     final originalPath = item['original_image_path'];
     String imageUrl = '';
-    
+
     if (originalPath != null && originalPath.toString().isNotEmpty) {
       imageUrl = Supabase.instance.client.storage
           .from('photos')
@@ -274,10 +282,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.65),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.8),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.8), width: 1),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF92a8d1).withOpacity(0.15),
@@ -319,7 +324,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: imageUrl.isNotEmpty 
+                    child: imageUrl.isNotEmpty
                         ? Image.network(
                             imageUrl,
                             width: 60,
@@ -329,20 +334,27 @@ class _GalleryScreenState extends State<GalleryScreen> {
                               width: 60,
                               height: 60,
                               color: Colors.white,
-                              child: const Icon(Icons.broken_image,
-                                  size: 20, color: Colors.grey),
+                              child: const Icon(
+                                Icons.broken_image,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
                             ),
                           )
-                        : Container( // Fallback if URL is empty
+                        : Container(
+                            // Fallback if URL is empty
                             width: 60,
                             height: 60,
                             color: Colors.white.withOpacity(0.5),
-                            child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                            child: const Icon(
+                              Icons.image_not_supported,
+                              color: Colors.grey,
+                            ),
                           ),
                   ),
                 ),
                 const SizedBox(width: 16),
-                
+
                 // --- TEXT CONTENT ---
                 Expanded(
                   child: Column(
@@ -371,7 +383,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: statusColor.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
@@ -400,7 +414,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     ],
                   ),
                 ),
-                
+
                 // --- PROCESS BUTTON ---
                 SizedBox(
                   height: 36,
