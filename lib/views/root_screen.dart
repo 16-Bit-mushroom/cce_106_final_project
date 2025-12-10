@@ -71,15 +71,16 @@ class _RootScreenState extends State<RootScreen> {
     if (_loadingRole) {
       return const Scaffold(
         body: Center(
-            child: CircularProgressIndicator(color: Color(0xFF92a8d1))),
+          child: CircularProgressIndicator(color: Color(0xFF92a8d1)),
+        ),
       );
     }
 
     // UPDATED SCREENS LIST (4 Items now)
     final List<Widget> screens = [
-      const GalleryScreen(),         // Index 0: Queue
-      const StyledPhotosScreen(),    // Index 1: Photos
-      const SearchScreen(),          // Index 2: Search (NEW)
+      const GalleryScreen(), // Index 0: Queue
+      const StyledPhotosScreen(), // Index 1: Photos
+      const SearchScreen(), // Index 2: Search (NEW)
       AdminScreen(currentUserRole: _userRole), // Index 3: Profile/Admin
     ];
 
@@ -233,7 +234,7 @@ class _NavBarIcon extends StatelessWidget {
         splashColor: activeColor.withOpacity(0.2),
         child: Container(
           // Reduced padding to fit 5 items comfortably
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), 
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -247,7 +248,7 @@ class _NavBarIcon extends StatelessWidget {
                           BoxShadow(
                             color: activeColor.withOpacity(0.3),
                             blurRadius: 8,
-                          )
+                          ),
                         ]
                       : [],
                 ),
