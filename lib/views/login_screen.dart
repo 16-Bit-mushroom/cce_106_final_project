@@ -52,8 +52,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _navigateToDashboard() {
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const RootScreen()));
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const RootScreen()));
   }
 
   @override
@@ -88,9 +89,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     fontWeight: FontWeight.w600,
                     shadows: [
                       const Shadow(
-                          color: Colors.black12,
-                          offset: Offset(0, 4),
-                          blurRadius: 8)
+                        color: Colors.black12,
+                        offset: Offset(0, 4),
+                        blurRadius: 8,
+                      ),
                     ],
                   ),
                 ),
@@ -113,12 +115,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.white.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                            color: Colors.white.withOpacity(0.5), width: 1.5),
+                          color: Colors.white.withOpacity(0.5),
+                          width: 1.5,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                              color: color5.withOpacity(0.2),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10)),
+                            color: color5.withOpacity(0.2),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
                         ],
                       ),
                       child: Column(
@@ -131,36 +136,40 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: Colors.white.withOpacity(0.8),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.lock_person_rounded,
-                                  size: 36, color: color5),
+                              child: const Icon(
+                                Icons.lock_person_rounded,
+                                size: 36,
+                                color: color5,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 30),
 
                           // INPUTS WITH LABELS (Anatomy Style)
                           _buildLabel("Email Address"),
-                          _buildGlassTextField(_emailController,
-                              "john.doe@example.com", Icons.email_outlined),
+                          _buildGlassTextField(
+                            _emailController,
+                            "john.doe@example.com",
+                            Icons.email_outlined,
+                          ),
                           const SizedBox(height: 16),
 
                           _buildLabel("Password"),
-                          _buildGlassTextField(_passwordController, "**********",
-                              Icons.lock_outline,
-                              isPassword: true),
-                          
-                          // Forgot Password Flow (Visual Only)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {}, // TODO: Implement reset logic if needed
-                              child: const Text("Forgot Password?", style: TextStyle(color: Colors.white70, fontSize: 12)),
-                            ),
+                          _buildGlassTextField(
+                            _passwordController,
+                            "**********",
+                            Icons.lock_outline,
+                            isPassword: true,
                           ),
-                          
-                          const SizedBox(height: 10),
+
+                          const SizedBox(height: 25),
 
                           if (_isLoading)
-                            const Center(child: CircularProgressIndicator(color: Colors.white))
+                            const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            )
                           else
                             Column(
                               children: [
@@ -172,10 +181,20 @@ class _LoginScreenState extends State<LoginScreen> {
                                       backgroundColor: color5,
                                       foregroundColor: Colors.white,
                                       elevation: 0,
-                                      padding: const EdgeInsets.symmetric(vertical: 18),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 18,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
                                     ),
-                                    child: const Text('Log In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                    child: const Text(
+                                      'Log In',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 20),
@@ -184,12 +203,27 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Text("Don't have an account?", style: TextStyle(color: Colors.white70)),
+                                    const Text(
+                                      "Don't have an account?",
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
                                     TextButton(
                                       onPressed: () {
-                                        Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen()));
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const SignupScreen(),
+                                          ),
+                                        );
                                       },
-                                      child: const Text("Sign Up", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                      child: const Text(
+                                        "Sign Up",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -223,8 +257,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildGlassTextField(
-      TextEditingController controller, String hint, IconData icon,
-      {bool isPassword = false}) {
+    TextEditingController controller,
+    String hint,
+    IconData icon, {
+    bool isPassword = false,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.6),
@@ -239,8 +276,10 @@ class _LoginScreenState extends State<LoginScreen> {
           hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
           prefixIcon: Icon(icon, color: const Color(0xFF92a8d1)),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
         ),
       ),
     );

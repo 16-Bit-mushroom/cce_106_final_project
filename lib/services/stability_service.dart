@@ -7,7 +7,7 @@ class StabilityService {
   // Move this key to a backend before releasing to production.
   // ----------------------------------------------------
   static const String _apiKey =
-      'sk-QVdw3nPPDjNAGACjroVUKifISASs9ZfQLIWscvI50aNvOSHQ';
+      'sk-sSbsWwGCuKFZtnmIYqm17CGs2fRHoPOFwsgqOBckLuhSC2nu';
 
   // DOCUMENTATION SOURCE: Page 126-131 of your PDF (Control > Structure)
   static const String _baseUrl = 'https://api.stability.ai';
